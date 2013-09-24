@@ -23,6 +23,17 @@ build-type:          Simple
 
 cabal-version:       >=1.10
 
+library
+  build-depends:
+    base >=4.6 && <4.7,
+    pandoc-types,
+    transformers
+  exposed-modules:
+    Text.Report.Types
+  ghc-options:         -Wall
+  hs-source-dirs:      src
+  default-language:    Haskell2010
+
 executable haskell-report
   main-is:             Main.hs
   build-depends:       
@@ -32,4 +43,5 @@ executable haskell-report
     pandoc
   hs-source-dirs:      haskell-report
   default-language:    Haskell2010
+  ghc-options:         -Wall
   
