@@ -36,11 +36,13 @@ library
 
 executable haskell-report
   main-is:             Main.hs
-  build-depends:       
+  build-depends:
+    haskell-report,
     base >=4.6 && <4.7,
     ghc,
     ghc-paths,
-    pandoc
+    pandoc,
+    pandoc-types
   hs-source-dirs:      haskell-report
   default-language:    Haskell2010
   ghc-options:         -Wall

@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
@@ -6,10 +7,11 @@ module Text.Report.Types where
 
 import           Control.Applicative
 import           Control.Monad.IO.Class (MonadIO, liftIO)
+import           Data.Typeable          (Typeable)
 import qualified Text.Pandoc.Builder    as Pandoc
 
-newtype Report a = Report (IO a)
-  deriving (Monad, Functor, Applicative, MonadIO)
+newtype Report a = Report {runReport :: IO a}
+  deriving (Monad, Functor, Applicative, MonadIO, Typeable)
 
 class Render a where
     render :: a -> Report Pandoc.Inlines
