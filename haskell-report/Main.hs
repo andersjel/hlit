@@ -1,6 +1,5 @@
 module Main where
 
-import           Control.Applicative
 import           Control.Monad       (forM_)
 import           Data.Dynamic        (fromDyn)
 import qualified DynFlags
@@ -43,12 +42,12 @@ importReportTypes = do
         report_interactive = GHC.IIDecl report_qual
     GHC.setContext $ report_interactive : context
 
--- Parses GHC arguments, returns left over arguments.
-parseGhcArguments :: Ghc [String]
-parseGhcArguments = do
+-- Parses arguments for GHC, returns left over arguments.
+parseGhcArguments :: [String] -> Ghc [String]
+parseGhcArguments args = do
     dflags <- GHC.getSessionDynFlags
-    args <- map GHC.noLoc <$> liftIO getArgs
-    (dflags', args', warnings) <- GHC.parseDynamicFlags dflags args
+    let located_args = map GHC.noLoc args
+    (dflags', args', warnings) <- GHC.parseDynamicFlags dflags located_args
     -- Print each warning
     forM_ warnings $
         liftIO . putStrLn .
@@ -60,7 +59,7 @@ parseGhcArguments = do
 main :: IO ()
 main = GHC.defaultErrorHandler DynFlags.defaultFatalMessager DynFlags.defaultFlushOut $
     GHC.runGhc (Just libdir) $ do
-        [infile] <- parseGhcArguments
+        [infile] <- parseGhcArguments =<< liftIO getArgs
         setupSession infile
         importReportTypes
         result <- GHC.dynCompileExpr "Text.Report.Types.render stuff"
