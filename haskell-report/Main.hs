@@ -13,9 +13,9 @@ import           System.Environment  (getArgs)
 import qualified Text.Pandoc.Builder as Pandoc
 import           Text.Report.Types   (Report, runReport)
 
--- Also sets the context to include everything at the top level of file
-loadFile :: FilePath -> Ghc ()
-loadFile file = do
+-- Do the equivalent of a GHCi :load.
+setupSession :: FilePath -> Ghc ()
+setupSession file = do
     dflags <- GHC.getSessionDynFlags
     -- If we do not set the target to interpreted, the file has to have a main
     -- function or a proper 'module X where ...' header.
@@ -26,16 +26,22 @@ loadFile file = do
     -- TODO, do not guess
     target <- GHC.guessTarget file Nothing
     GHC.addTarget target
-    graph <- GHC.depanal [] False
     _ <- GHC.load GHC.LoadAllTargets
+    -- The below two lines add the file to the interactive context
+    graph <- GHC.depanal [] False
+    GHC.setContext $ map (GHC.IIModule . GHC.ms_mod_name) graph
+
+-- Does a qualified import of Text.Report.Types.
+importReportTypes :: Ghc ()
+importReportTypes = do
+    context <- GHC.getContext
     let
-        -- The file itself has to be imported
-        imp_file = map (GHC.IIModule . GHC.ms_mod_name) graph
-        -- We also need Text.Report.Types
-        imp_report_promiscuous = GHC.simpleImportDecl $ GHC.mkModuleName "Text.Report.Types"
-        imp_report = imp_report_promiscuous{ GHC.ideclQualified = True }
-        imports = GHC.IIDecl imp_report : imp_file
-    GHC.setContext imports
+        -- A simple import declaration
+        report_unqual = GHC.simpleImportDecl $ GHC.mkModuleName "Text.Report.Types"
+        -- Change it to a qualified import
+        report_qual = report_unqual{ GHC.ideclQualified = True }
+        report_interactive = GHC.IIDecl report_qual
+    GHC.setContext $ report_interactive : context
 
 -- Parses GHC arguments, returns left over arguments.
 parseGhcArguments :: Ghc [String]
@@ -55,7 +61,8 @@ main :: IO ()
 main = GHC.defaultErrorHandler DynFlags.defaultFatalMessager DynFlags.defaultFlushOut $
     GHC.runGhc (Just libdir) $ do
         [infile] <- parseGhcArguments
-        loadFile infile
+        setupSession infile
+        importReportTypes
         result <- GHC.dynCompileExpr "Text.Report.Types.render stuff"
         let report = fromDyn result (undefined :: Report Pandoc.Inlines)
         inlines <- liftIO $ runReport report
