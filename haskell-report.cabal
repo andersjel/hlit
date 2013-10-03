@@ -30,7 +30,7 @@ library
     transformers
   exposed-modules:
     Text.Report.Types
-  ghc-options:         -Wall
+  ghc-options:         -Wall -fno-warn-unused-do-bind
   hs-source-dirs:      src
   default-language:    Haskell2010
 
@@ -45,5 +45,5 @@ executable haskell-report
     pandoc-types
   hs-source-dirs:      haskell-report
   default-language:    Haskell2010
-  ghc-options:         -Wall
+  ghc-options:         -Wall -fno-warn-unused-do-bind
   

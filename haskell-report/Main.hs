@@ -12,6 +12,12 @@ import           System.Environment  (getArgs)
 import qualified Text.Pandoc.Builder as Pandoc
 import           Text.Report.Types   (Report, runReport)
 
+printOutputables :: Outputable.Outputable a => [a] -> Ghc ()
+printOutputables os = do
+    dflags <- GHC.getSessionDynFlags
+    let sdoc_to_string = Outputable.showSDocForUser dflags Outputable.neverQualify
+    forM_ os $ liftIO . putStrLn . sdoc_to_string . Outputable.ppr
+
 -- Do the equivalent of a GHCi :load.
 setupSession :: FilePath -> Ghc ()
 setupSession file = do
@@ -21,11 +27,11 @@ setupSession file = do
     let dflags' = dflags{
         GHC.ghcLink=GHC.LinkInMemory,
         GHC.hscTarget=GHC.HscInterpreted}
-    _ <- GHC.setSessionDynFlags dflags'
+    GHC.setSessionDynFlags dflags'
     -- TODO, do not guess
     target <- GHC.guessTarget file Nothing
     GHC.addTarget target
-    _ <- GHC.load GHC.LoadAllTargets
+    GHC.load GHC.LoadAllTargets
     -- The below two lines add the file to the interactive context
     graph <- GHC.depanal [] False
     GHC.setContext $ map (GHC.IIModule . GHC.ms_mod_name) graph
@@ -48,12 +54,8 @@ parseGhcArguments args = do
     dflags <- GHC.getSessionDynFlags
     let located_args = map GHC.noLoc args
     (dflags', args', warnings) <- GHC.parseDynamicFlags dflags located_args
-    -- Print each warning
-    forM_ warnings $
-        liftIO . putStrLn .
-        Outputable.showSDocForUser dflags' Outputable.neverQualify .
-        Outputable.ppr
-    _ <- GHC.setSessionDynFlags dflags'
+    printOutputables warnings
+    GHC.setSessionDynFlags dflags'
     return $ map GHC.unLoc args'
 
 main :: IO ()
