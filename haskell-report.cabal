@@ -42,7 +42,8 @@ executable haskell-report
     ghc,
     ghc-paths,
     pandoc,
-    pandoc-types
+    pandoc-types,
+    transformers
   hs-source-dirs:      haskell-report
   default-language:    Haskell2010
   ghc-options:         -Wall -fno-warn-unused-do-bind
