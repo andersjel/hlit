@@ -1,14 +1,15 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module HaskellReport.RInterp
-    ( RInterp
+module HaskellReport.Interp
+    ( Interp
     , Options (..)
     , evalInline, evalBlock
-    , runRInterp
+    , runInterp
     ) where
 
-import           Control.Monad          (forM_, unless)
+import           Control.Applicative
+import           Control.Monad          (forM_, unless, ap)
 import           Control.Monad.IO.Class
-import           Data.Dynamic           (fromDyn, Typeable)
+import           Data.Dynamic           (Typeable, fromDyn)
 import qualified DynFlags
 import           GHC                    (Ghc)
 import qualified GHC
@@ -18,30 +19,34 @@ import qualified Outputable
 import qualified Text.Pandoc.Builder    as Pandoc
 import           Text.Report.Types      (Report)
 
-newtype RInterp a = RInterp (Ghc a)
-    deriving (Monad)
+newtype Interp a = Interp (Ghc a)
+    deriving (Monad, Functor)
 
-instance MonadIO RInterp where
-    liftIO = RInterp . MonadUtils.liftIO
+instance MonadIO Interp where
+    liftIO = Interp . MonadUtils.liftIO
+
+instance Applicative Interp where
+    pure = return
+    (<*>) = ap
 
 data Options = Options
     { inputFile :: FilePath
     , ghcArgs   :: [String]
     }
 
-evalBase :: Typeable a => String -> String -> RInterp a
-evalBase f expr = RInterp $ do
+evalBase :: Typeable a => String -> String -> Interp a
+evalBase f expr = Interp $ do
     result <- GHC.dynCompileExpr $ "Text.Report.Types." ++ f ++ " (" ++ expr ++ ")"
     return $ fromDyn result $ error "Could not render expression"
 
-evalInline :: String -> RInterp (Report Pandoc.Inlines)
+evalInline :: String -> Interp (Report Pandoc.Inlines)
 evalInline = evalBase "render"
 
-evalBlock :: String -> RInterp (Report Pandoc.Blocks)
+evalBlock :: String -> Interp (Report Pandoc.Blocks)
 evalBlock = evalBase "renderBlock"
 
-runRInterp :: Options -> RInterp a -> IO a
-runRInterp opts (RInterp act) =
+runInterp :: Options -> Interp a -> IO a
+runInterp opts (Interp act) =
     GHC.defaultErrorHandler DynFlags.defaultFatalMessager DynFlags.defaultFlushOut $
         GHC.runGhc (Just libdir) $ do
             dflags <- GHC.getSessionDynFlags
