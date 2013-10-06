@@ -21,19 +21,20 @@ data Arguments = Arguments
 
 options :: [OptDescr Flag]
 options =
-    [ Option "g" ["ghc-option"] (ReqArg (GhcOptions . pure) "OPT")
+    [ Option "g" ["ghc-option"] (ReqArg (GhcOptions . pure) "OPTION")
         "An option for GHC"
+    , Option "G" ["ghc-options"] (ReqArg (GhcOptions . words) "OPTIONs")
+        "Several options for GHC (split on spaces)"
     ]
 
 getArguments :: IO Arguments
 getArguments = do
     (flags', args, errors) <- GetOpt.getOpt GetOpt.Permute options <$> getArgs
-    let header = "haskell-report [OPTIONS] infile:"
+    let header = "usage: haskell-report [OPTIONS] infile"
         info = GetOpt.usageInfo header options
         bail = putStrLn info >> exitFailure
     unless (null errors) $ do
         for_ errors putStrLn
-        putStrLn ""
         bail
     case args of
         [inputFile'] -> return $ Arguments inputFile' flags'
