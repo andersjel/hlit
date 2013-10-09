@@ -13,6 +13,11 @@ import           Text.Report.Types      (Report, runReport)
 
 data Flag =
     GhcOptions [String]
+    | PandocExe FilePath
+    | PandocOptions [String]
+    | FromFormat String
+    | ToFormat String
+    | OutputFile FilePath
 
 data Arguments = Arguments
     { inputFile :: FilePath
@@ -25,6 +30,18 @@ options =
         "An option for GHC"
     , Option "G" ["ghc-options"] (ReqArg (GhcOptions . words) "OPTIONs")
         "Several options for GHC (split on spaces)"
+    , Option "p" ["pandoc-option"] (ReqArg (PandocOptions . pure) "OPTION")
+        "An option for pandoc"
+    , Option "P" ["pandoc-options"] (ReqArg (PandocOptions . words) "OPTIONs")
+        "Several options for pandoc (split on spaces)"
+    , Option "e" ["pandoc-path"] (ReqArg PandocExe "EXEC")
+        "Where to find the pandoc executeable"
+    , Option "f" ["--from"] (ReqArg FromFormat "FORMAT")
+        "Input format (forwarded to pandoc)"
+    , Option "t" ["--to"] (ReqArg ToFormat "FORMAT")
+        "Output format (forwarded to pandoc)"
+    , Option "o" ["--output"] (ReqArg OutputFile "FILE")
+        "Output file (or - for stdout)"
     ]
 
 getArguments :: IO Arguments
