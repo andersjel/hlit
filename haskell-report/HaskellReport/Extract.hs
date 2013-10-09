@@ -8,6 +8,7 @@ import           Data.Foldable        (toList)
 import           Data.Traversable
 import           HaskellReport.Interp
 import           Text.Pandoc.Builder  (Block (..), Inline (..), Pandoc (..))
+import qualified Text.Pandoc.Builder as P
 import           Text.Report.Types
 
 newtype IR a = IR { unIR :: Interp (Report a) }
@@ -35,18 +36,14 @@ hasInlines :: ([Inline] -> a) -> [Inline] -> IR [a]
 hasInlines f inlines = pure . f <$> exInlines inlines
 
 exBlock :: Block -> IR [Block]
-exBlock (Plain inlines) =
-    hasInlines Plain inlines
-exBlock (Para inlines) =
-    hasInlines Para inlines
+exBlock (Plain inlines) = hasInlines Plain inlines
+exBlock (Para inlines) = hasInlines Para inlines
 exBlock (CodeBlock attr str) =
     case dropWhile isSpace str of
         '@' : expr -> toList <$> IR (evalBlock expr)
         _ -> pure $ pure $ CodeBlock attr str
-exBlock r@(RawBlock _ _) =
-    pure $ pure r
-exBlock (BlockQuote blocks) =
-    pure . BlockQuote <$> exBlocks blocks
+exBlock r@(RawBlock _ _) = pure $ pure r
+exBlock (BlockQuote blocks) = pure . BlockQuote <$> exBlocks blocks
 exBlock (OrderedList attrs content) =
     pure . OrderedList attrs <$> traverse exBlocks content
 exBlock (BulletList content) =
@@ -56,12 +53,9 @@ exBlock (DefinitionList content) =
   where
     item (term, definitions) =
         (,) <$> exInlines term <*> traverse exBlocks definitions
-exBlock (Header n attr inlines) =
-    hasInlines (Header n attr) inlines
-exBlock r@HorizontalRule =
-    pure $ pure r
-exBlock (Table caption alignment widths headers content) =
-    pure <$> table
+exBlock (Header n attr inlines) = hasInlines (Header n attr) inlines
+exBlock r@HorizontalRule = pure $ pure r
+exBlock (Table caption alignment widths headers content) = pure <$> table
   where
     table = Table
         <$> exInlines caption
@@ -69,10 +63,37 @@ exBlock (Table caption alignment widths headers content) =
         <*> pure widths
         <*> traverse exBlocks headers
         <*> traverse (traverse exBlocks) content
-exBlock (Div attr blocks) =
-    pure . Div attr <$> exBlocks blocks
-exBlock r@Null =
-    pure $ pure r
+exBlock (Div attr blocks) = pure . Div attr <$> exBlocks blocks
+exBlock r@Null = pure $ pure r
 
 exInline :: Inline -> IR [Inline]
-exInline = undefined
+exInline r@(Str _) = pure $ pure r
+exInline (Emph inlines) = hasInlines Emph inlines
+exInline (Strong inlines) = hasInlines Strong inlines
+exInline (Strikeout inlines) = hasInlines Strikeout inlines
+exInline (Superscript inlines) = hasInlines Superscript inlines
+exInline (Subscript inlines) = hasInlines Subscript inlines
+exInline (SmallCaps inlines) = hasInlines SmallCaps inlines
+exInline (Quoted typ inlines) = hasInlines (Quoted typ) inlines
+exInline (Cite cs inlines) = pure <$> cite
+  where
+    cite = Cite <$> traverse f cs <*> exInlines inlines
+    f c = P.Citation 
+        <$> pure (P.citationId c)
+        <*> exInlines (P.citationPrefix c)
+        <*> exInlines (P.citationSuffix c)
+        <*> pure (P.citationMode c)
+        <*> pure (P.citationNoteNum c)
+        <*> pure (P.citationHash c)
+exInline (Code attr str) = 
+    case dropWhile isSpace str of
+        '@' : expr -> toList <$> IR (evalInline expr)
+        _ -> pure $ pure $ Code attr str
+exInline r@Space = pure $ pure r
+exInline r@LineBreak = pure $ pure r
+exInline r@(Math _ _) = pure $ pure r
+exInline r@(RawInline _ _) = pure $ pure r
+exInline (Link inlines targ) = hasInlines (flip Link targ) inlines
+exInline (Image inlines targ) = hasInlines (flip Image targ) inlines
+exInline (Note blocks) = pure . Note <$> exBlocks blocks
+exInline (Span attr inlines) = hasInlines (Span attr) inlines
