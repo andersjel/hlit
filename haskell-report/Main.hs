@@ -1,15 +1,20 @@
 module Main where
 
 import           Control.Applicative
-import           Control.Monad          (unless)
-import           Control.Monad.IO.Class
+import           Control.Monad           (unless)
+import qualified Data.Aeson              as Aeson
 import           Data.Foldable
-import qualified HaskellReport.Interp   as Interp
-import           System.Console.GetOpt  (ArgDescr (..), OptDescr (..))
-import qualified System.Console.GetOpt  as GetOpt
-import           System.Environment     (getArgs)
-import           System.Exit            (exitFailure)
-import           Text.Report.Types      (Report, runReport)
+import qualified Data.Text.Lazy          as T
+import           Data.Text.Lazy.Encoding (decodeUtf8, encodeUtf8)
+import           HaskellReport.Extract   (extract)
+import qualified HaskellReport.Interp    as Interp
+import           System.Console.GetOpt   (ArgDescr (..), OptDescr (..))
+import qualified System.Console.GetOpt   as GetOpt
+import           System.Environment      (getArgs)
+import           System.Exit             (exitFailure)
+import           System.Process          (readProcess)
+import           Text.Pandoc             (Pandoc)
+import           Text.Report.Types       (Report, runReport)
 
 data Flag =
     GhcOptions [String]
@@ -57,21 +62,65 @@ getArguments = do
         [inputFile'] -> return $ Arguments inputFile' flags'
         _ -> bail
 
-extractGhcArgs :: Arguments -> [String]
-extractGhcArgs args = do
+getGhcArgs :: Arguments -> [String]
+getGhcArgs args = do
     f <- flags args
     case f of
         GhcOptions os -> os
         _ -> []
 
-main :: IO ()
-main = do
-    args <- getArguments
+data PandocStage = PandocRead | PandocWrite 
+
+getPandocArgs :: Arguments -> PandocStage -> [String]
+getPandocArgs args stage = do
+    f <- flags args
+    case f of
+        PandocOptions os -> os
+        ToFormat x -> case stage of 
+            PandocWrite -> ["-t", x]
+            PandocRead -> []
+        FromFormat x -> case stage of 
+            PandocWrite -> []
+            PandocRead -> ["-f", x]
+        _ -> []
+
+getPandocExe :: Arguments -> String
+getPandocExe args = g $ flags args
+  where
+    g [] = "pandoc"
+    g (PandocExe exe : _) = exe
+    g (_ : fs) = g fs
+
+getOutputFile :: Arguments -> String
+getOutputFile args = g $ flags args
+  where
+    g [] = "-"
+    g (OutputFile path : _) = path
+    g (_ : fs) = g fs
+
+run :: Arguments -> IO ()
+run args = do
+    let pandocInArgs = getPandocArgs args PandocRead 
+            ++ ["-t", "json", inputFile args]
+    pandocInOutput <- readProcess (getPandocExe args) pandocInArgs ""
+    let utf8PandocOutput = encodeUtf8 . T.strip . T.pack $ pandocInOutput
+        eitherPandoc :: Either String Pandoc
+        eitherPandoc = Aeson.eitherDecode' utf8PandocOutput
+    pandoc <- case eitherPandoc of
+        Left err -> putStrLn err >> exitFailure
+        Right p -> return p
     let interpOptions = Interp.Options
             { Interp.inputFile = inputFile args
-            , Interp.ghcArgs   = extractGhcArgs args
+            , Interp.ghcArgs   = getGhcArgs args
             }
-    Interp.runInterp interpOptions $ do
-        report <- Interp.evalInline "stuff"
-        inlines <- liftIO $ runReport report
-        liftIO $ print inlines
+    report <- Interp.runInterp interpOptions $ extract pandoc
+    pandoc' <- runReport report
+    let pandocOutArgs =
+            getPandocArgs args PandocWrite
+            ++ ["-f", "json", "-o", getOutputFile args, "-"]
+        jsonPandoc' = T.unpack . decodeUtf8 $ Aeson.encode pandoc'
+    pandocOutOutput <- readProcess (getPandocExe args) pandocOutArgs jsonPandoc'
+    putStr pandocOutOutput
+
+main :: IO ()
+main = run =<< getArguments

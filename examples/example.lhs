@@ -1,7 +1,7 @@
 Example
 =======
 
-Should print 42: `@ prod [7, 3, 2]`.
+Should print 42: `@ product [7, 3, 2] :: Int`.
 
 Here we bring something into scope
 
@@ -11,4 +11,4 @@ that we can use inline by typing `@testExpression`.
 We can use `@stuff` before it is defined.
 
 > stuff :: String
-> stuff = "things"
+> stuff = "thing"
