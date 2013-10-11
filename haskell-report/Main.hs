@@ -113,11 +113,12 @@ readDoc args = do
     let args' = getPandocArgs args PandocRead
             ++ ["-t", "json", inputFile args]
     output <- callProcess (getPandocExe args) args' ""
-    let doc :: Either String Pandoc
-        doc = Aeson.eitherDecode' output
-    case doc of
-        Left err -> putStrLn err >> exitFailure
-        Right p -> return p
+    case Aeson.decode' output of
+        Nothing -> do
+            putStrLn "Unexpected output from pandoc:"
+            hPut IO.stderr output
+            exitFailure
+        Just p -> return p
 
 writeDoc :: Arguments -> Pandoc -> IO ()
 writeDoc args doc = do
