@@ -39,14 +39,14 @@ executable haskell-report
   build-depends:
     haskell-report,
     base >=4.6 && <4.7,
+    aeson,
+    bytestring,
     ghc,
     ghc-paths,
     pandoc,
     pandoc-types,
-    transformers,
-    process,
-    aeson,
-    text
+    process-extras,
+    transformers
   hs-source-dirs:      haskell-report
   default-language:    Haskell2010
   ghc-options:         -Wall -fno-warn-unused-do-bind
