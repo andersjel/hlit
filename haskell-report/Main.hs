@@ -8,7 +8,7 @@ import qualified Data.Aeson                     as Aeson
 import           Data.ByteString.Lazy           (ByteString, hPut)
 import           Data.Default
 import           Data.Foldable                  (for_)
-import           Data.Lens
+import           Data.Lens.Common
 import           Data.Maybe                     (fromMaybe)
 import           HaskellReport.Extract          (extract)
 import qualified HaskellReport.Interp           as Interp
