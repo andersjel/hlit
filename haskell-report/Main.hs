@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell   #-}
 
 module Main where
 
@@ -6,9 +7,11 @@ import           Control.Applicative
 import           Control.Monad                  (unless)
 import qualified Data.Aeson                     as Aeson
 import           Data.ByteString.Lazy           (ByteString, hPut)
+import           Data.Char                      (toUpper)
 import           Data.Default
 import           Data.Foldable                  (for_)
 import           Data.Lens.Common
+import           Data.Lens.Template
 import           Data.Maybe                     (fromMaybe)
 import           HaskellReport.Extract          (extract)
 import qualified HaskellReport.Interp           as Interp
@@ -31,20 +34,7 @@ data Arguments = Arguments
     , pandocOptions :: [String]
     }
 
-lGhcOptions :: Lens Arguments [String]
-lGhcOptions = lens ghcOptions (\x y -> y{ghcOptions = x})
-lInputFile :: Lens Arguments FilePath
-lInputFile = lens inputFile (\x y -> y{inputFile = x})
-lInputFormat :: Lens Arguments (Maybe String)
-lInputFormat = lens inputFormat (\x y -> y{inputFormat = x})
-lOutputFile :: Lens Arguments (Maybe FilePath)
-lOutputFile = lens outputFile (\x y -> y{outputFile = x})
-lOutputFormat :: Lens Arguments (Maybe String)
-lOutputFormat = lens outputFormat (\x y -> y{outputFormat = x})
-lPandocExe :: Lens Arguments FilePath
-lPandocExe = lens pandocExe (\x y -> y{pandocExe = x})
-lPandocOptions :: Lens Arguments [String]
-lPandocOptions = lens pandocOptions (\x y -> y{pandocOptions = x})
+nameMakeLens ''Arguments $ \(c:cs) -> Just $ 'l' : toUpper c : cs
 
 instance Default Arguments where
     def = Arguments
@@ -60,18 +50,18 @@ instance Default Arguments where
 options :: [OptDescr (Arguments -> Arguments)]
 options =
     [ Option "g" ["ghc-option"]
-        (ReqArg (\s -> modL lGhcOptions (++[s])) "OPTION")
+        (ReqArg (\x -> modL lGhcOptions (++[x])) "OPTION")
         "An option for GHC"
     , Option "G" ["ghc-options"]
-        (ReqArg (\ss -> modL lGhcOptions (++words ss)) "OPTIONs")
+        (ReqArg (\x -> modL lGhcOptions (++words x)) "OPTIONs")
         "Several options for GHC (split on spaces)"
     , Option "p" ["pandoc-option"]
-        (ReqArg (\s -> modL lPandocOptions (++[s])) "OPTION")
+        (ReqArg (\x -> modL lPandocOptions (++[x])) "OPTION")
         "An option for pandoc"
     , Option "P" ["pandoc-options"]
-        (ReqArg (\ss -> modL lPandocOptions (++words ss)) "OPTIONs")
+        (ReqArg (\x -> modL lPandocOptions (++words x)) "OPTIONs")
         "Several options for pandoc (split on spaces)"
-    , Option "e" ["pandoc-path"]
+    , Option "" ["pandoc-path"]
         (ReqArg (setL lPandocExe) "EXEC")
         "Where to find the pandoc executeable"
     , Option "f" ["--from"]

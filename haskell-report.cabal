@@ -43,6 +43,7 @@ executable haskell-report
     bytestring,
     data-default,
     data-lens,
+    data-lens-template,
     ghc,
     ghc-paths,
     pandoc,
