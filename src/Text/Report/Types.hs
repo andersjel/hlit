@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
 
 module Text.Report.Types where
@@ -37,8 +38,25 @@ instance Render String where
 instance Render Int where
     render = render . show
 
+instance Render Integer where
+    render = render . show
+
+instance Render Bool where
+    render = render . show
+
+instance Render Float where
+    render = render . show
+
 instance Render Double where
     render = render . show
+
+instance Render a => Render (Maybe a) where
+    render (Just x) = render x
+    render Nothing = return $ Pandoc.emph "Nothing"
+
+instance (Render a, Render b) => Render (Either a b) where
+    render (Right x) = render x
+    render (Left x) = Pandoc.emph <$> render x
 
 instance RenderBlock Pandoc.Blocks where
     renderBlock = return
@@ -53,4 +71,4 @@ instance RenderBlock a => RenderBlock (IO a) where
     renderBlock x = renderBlock =<< liftIO x
 
 instance RenderBlock String where
-    renderBlock = return . Pandoc.blockQuote . Pandoc.plain . Pandoc.text
+    renderBlock = return . Pandoc.codeBlock
