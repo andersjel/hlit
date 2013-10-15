@@ -64,13 +64,13 @@ options =
     , Option "" ["pandoc-path"]
         (ReqArg (setL lPandocExe) "EXEC")
         "Where to find the pandoc executeable"
-    , Option "f" ["--from"]
+    , Option "f" ["from"]
         (ReqArg (setL lInputFormat . Just) "FORMAT")
         "Input format (forwarded to pandoc)"
-    , Option "t" ["--to"]
+    , Option "t" ["to"]
         (ReqArg (setL lOutputFormat . Just) "FORMAT")
         "Output format (forwarded to pandoc)"
-    , Option "o" ["--output"]
+    , Option "o" ["output"]
         (ReqArg (setL lOutputFile . Just) "FILE")
         "Output file (or - for stdout)"
     ]
@@ -78,7 +78,7 @@ options =
 getArguments :: IO Arguments
 getArguments = do
     (flags, args, errors) <- GetOpt.getOpt GetOpt.Permute options <$> getArgs
-    let header = "usage: hlit [OPTIONS] INPUT-FILE or -"
+    let header = "usage: hlit [OPTIONS] (INPUT-FILE or -)"
         info = GetOpt.usageInfo header options
         bail = putStrLn info >> exitFailure
     unless (null errors) $ do
