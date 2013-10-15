@@ -1,15 +1,15 @@
-module HaskellReport.Extract
+module Lit.Extract
     ( extract
     ) where
 
 import           Control.Applicative
-import           Data.Char            (isSpace)
-import           Data.Foldable        (toList)
+import           Data.Char           (isSpace)
+import           Data.Foldable       (toList)
 import           Data.Traversable
-import           HaskellReport.Interp
-import           Text.Pandoc.Builder  (Block (..), Inline (..), Pandoc (..))
+import           Lit.Interp
+import           Text.Lit.Types
+import           Text.Pandoc.Builder (Block (..), Inline (..), Pandoc (..))
 import qualified Text.Pandoc.Builder as P
-import           Text.Report.Types
 
 newtype IR a = IR { unIR :: Interp (Report a) }
 
@@ -78,14 +78,14 @@ exInline (Quoted typ inlines) = hasInlines (Quoted typ) inlines
 exInline (Cite cs inlines) = pure <$> cite
   where
     cite = Cite <$> traverse f cs <*> exInlines inlines
-    f c = P.Citation 
+    f c = P.Citation
         <$> pure (P.citationId c)
         <*> exInlines (P.citationPrefix c)
         <*> exInlines (P.citationSuffix c)
         <*> pure (P.citationMode c)
         <*> pure (P.citationNoteNum c)
         <*> pure (P.citationHash c)
-exInline (Code attr str) = 
+exInline (Code attr str) =
     case dropWhile isSpace str of
         '@' : expr -> toList <$> IR (evalInline expr)
         _ -> pure $ pure $ Code attr str

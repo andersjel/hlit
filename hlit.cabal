@@ -1,10 +1,10 @@
-name:                haskell-report
+name:                hlit
 -- PVP summary:      +-+------- breaking API changes
 --                   | | +----- non-breaking API additions
 --                   | | | +--- code changes with no API change
 version:             0.1.0.0
 synopsis:
-  Evaluate inline expressions in pandoc supported formates.
+  Evaluate inline expressions in pandoc supported formats.
   Rich, extendable pretty printing.
 
 -- A longer description of the package.
@@ -29,15 +29,15 @@ library
     pandoc-types,
     transformers
   exposed-modules:
-    Text.Report.Types
+    Text.Lit.Types
   ghc-options:         -Wall -fno-warn-unused-do-bind
   hs-source-dirs:      src
   default-language:    Haskell2010
 
-executable haskell-report
+executable hlit
   main-is:             Main.hs
   build-depends:
-    haskell-report,
+    hlit,
     base >=4.6 && <4.7,
     aeson,
     bytestring,
@@ -50,7 +50,7 @@ executable haskell-report
     pandoc-types,
     process-extras,
     transformers
-  hs-source-dirs:      haskell-report
+  hs-source-dirs:      hlit
   default-language:    Haskell2010
   ghc-options:         -Wall -fno-warn-unused-do-bind
   

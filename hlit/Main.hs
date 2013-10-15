@@ -13,16 +13,16 @@ import           Data.Foldable                  (for_)
 import           Data.Lens.Common
 import           Data.Lens.Template
 import           Data.Maybe                     (fromMaybe)
-import           HaskellReport.Extract          (extract)
-import qualified HaskellReport.Interp           as Interp
+import           Lit.Extract                    (extract)
+import qualified Lit.Interp                     as Interp
 import           System.Console.GetOpt          (ArgDescr (..), OptDescr (..))
 import qualified System.Console.GetOpt          as GetOpt
 import           System.Environment             (getArgs)
 import           System.Exit                    (ExitCode (..), exitFailure)
 import qualified System.IO                      as IO
 import           System.Process.ByteString.Lazy (readProcessWithExitCode)
+import           Text.Lit.Types                 (Report, runReport)
 import           Text.Pandoc                    (Pandoc)
-import           Text.Report.Types              (Report, runReport)
 
 data Arguments = Arguments
     { ghcOptions    :: [String]
@@ -78,7 +78,7 @@ options =
 getArguments :: IO Arguments
 getArguments = do
     (flags, args, errors) <- GetOpt.getOpt GetOpt.Permute options <$> getArgs
-    let header = "usage: haskell-report [OPTIONS] infile"
+    let header = "usage: hlit [OPTIONS] INPUT-FILE or -"
         info = GetOpt.usageInfo header options
         bail = putStrLn info >> exitFailure
     unless (null errors) $ do

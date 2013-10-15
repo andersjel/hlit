@@ -1,5 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module HaskellReport.Interp
+module Lit.Interp
     ( Interp
     , Options (..)
     , evalInline, evalBlock
@@ -7,7 +7,7 @@ module HaskellReport.Interp
     ) where
 
 import           Control.Applicative
-import           Control.Monad          (forM_, unless, ap)
+import           Control.Monad          (ap, forM_, unless)
 import           Control.Monad.IO.Class
 import           Data.Dynamic           (Typeable, fromDyn)
 import qualified DynFlags
@@ -16,8 +16,8 @@ import qualified GHC
 import           GHC.Paths              (libdir)
 import qualified MonadUtils
 import qualified Outputable
+import           Text.Lit.Types         (Report)
 import qualified Text.Pandoc.Builder    as Pandoc
-import           Text.Report.Types      (Report)
 
 newtype Interp a = Interp (Ghc a)
     deriving (Monad, Functor)
@@ -36,7 +36,7 @@ data Options = Options
 
 evalBase :: Typeable a => String -> String -> Interp a
 evalBase f expr = Interp $ do
-    result <- GHC.dynCompileExpr $ "Text.Report.Types." ++ f ++ " (" ++ expr ++ ")"
+    result <- GHC.dynCompileExpr $ "Text.Lit.Types." ++ f ++ " (" ++ expr ++ ")"
     return $ fromDyn result $ error "Could not render expression"
 
 evalInline :: String -> Interp (Report Pandoc.Inlines)
@@ -53,7 +53,7 @@ runInterp opts (Interp act) =
             GHC.defaultCleanupHandler dflags $ do
                 parseGhcArguments $ ghcArgs opts
                 loadFile $ inputFile opts
-                importQualified "Text.Report.Types"
+                importQualified "Text.Lit.Types"
                 act
 
 -- Do the equivalent of a GHCi :load.

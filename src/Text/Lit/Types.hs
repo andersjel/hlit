@@ -4,7 +4,14 @@
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
 
-module Text.Report.Types where
+module Text.Lit.Types 
+    ( Render
+    , render
+    , RenderBlock
+    , renderBlock
+    , Report
+    , runReport
+    ) where
 
 import           Control.Applicative
 import           Control.Monad.IO.Class (MonadIO, liftIO)
