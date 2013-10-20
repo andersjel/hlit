@@ -30,7 +30,7 @@ instance Default FloatContext where
     def = FloatContext
         { sigFigs = 5
         , large = 8
-        , small = 3
+        , small = -3
         , style = Fuzzy
         }
 
