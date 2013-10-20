@@ -21,7 +21,7 @@ import           System.Environment             (getArgs)
 import           System.Exit                    (ExitCode (..), exitFailure)
 import qualified System.IO                      as IO
 import           System.Process.ByteString.Lazy (readProcessWithExitCode)
-import           Text.Lit.Types                 (Report, runReport)
+import           Text.Lit.Report                (Report, runReport)
 import           Text.Pandoc                    (Pandoc)
 
 data Arguments = Arguments

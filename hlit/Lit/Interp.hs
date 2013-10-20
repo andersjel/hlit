@@ -16,7 +16,7 @@ import qualified GHC
 import           GHC.Paths              (libdir)
 import qualified MonadUtils
 import qualified Outputable
-import           Text.Lit.Types         (Report)
+import           Text.Lit.Report        (Report)
 import qualified Text.Pandoc.Builder    as Pandoc
 
 newtype Interp a = Interp (Ghc a)
@@ -36,7 +36,7 @@ data Options = Options
 
 evalBase :: Typeable a => String -> String -> Interp a
 evalBase f expr = Interp $ do
-    result <- GHC.dynCompileExpr $ "Text.Lit.Types." ++ f ++ " (" ++ expr ++ ")"
+    result <- GHC.dynCompileExpr $ "Text.Lit.Render." ++ f ++ " (" ++ expr ++ ")"
     return $ fromDyn result $ error "Could not render expression"
 
 evalInline :: String -> Interp (Report Pandoc.Inlines)
@@ -53,7 +53,7 @@ runInterp opts (Interp act) =
             GHC.defaultCleanupHandler dflags $ do
                 parseGhcArguments $ ghcArgs opts
                 loadFile $ inputFile opts
-                importQualified "Text.Lit.Types"
+                importQualified "Text.Lit.Render"
                 act
 
 -- Do the equivalent of a GHCi :load.

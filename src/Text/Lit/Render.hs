@@ -1,25 +1,18 @@
-{-# LANGUAGE DeriveDataTypeable         #-}
-{-# LANGUAGE FlexibleInstances          #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE TypeSynonymInstances       #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
-module Text.Lit.Types 
+module Text.Lit.Render
     ( Render
     , render
     , RenderBlock
     , renderBlock
-    , Report
-    , runReport
     ) where
 
 import           Control.Applicative
-import           Control.Monad.IO.Class (MonadIO, liftIO)
-import           Data.Typeable          (Typeable)
+import           Control.Monad.IO.Class (liftIO)
+import           Text.Lit.Report
 import qualified Text.Pandoc.Builder    as Pandoc
-
-newtype Report a = Report {runReport :: IO a}
-  deriving (Monad, Functor, Applicative, MonadIO, Typeable)
 
 class Render a where
     render :: a -> Report Pandoc.Inlines

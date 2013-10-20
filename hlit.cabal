@@ -35,7 +35,8 @@ library
     transformers,
     data-default
   exposed-modules:
-    Text.Lit.Types
+    Text.Lit.Render
+    Text.Lit.Report
     Text.Lit.RenderFloat
   ghc-options:         -Wall -fno-warn-unused-do-bind
   hs-source-dirs:      src

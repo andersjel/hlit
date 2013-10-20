@@ -7,7 +7,7 @@ import           Data.Char           (isSpace)
 import           Data.Foldable       (toList)
 import           Data.Traversable
 import           Lit.Interp
-import           Text.Lit.Types
+import           Text.Lit.Report
 import           Text.Pandoc.Builder (Block (..), Inline (..), Pandoc (..))
 import qualified Text.Pandoc.Builder as P
 
