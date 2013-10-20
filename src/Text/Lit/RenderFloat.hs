@@ -1,15 +1,26 @@
+{-# LANGUAGE CPP               #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Text.Lit.RenderFloat
     ( renderFloat
     , FloatStyle (..)
     , FloatContext (..)
+
+#ifdef COMPILE_TESTS
+    , tests
+#endif
     ) where
 
 import           Data.Default
 import           Data.Monoid
 import qualified Numeric
-import qualified Text.Pandoc.Builder as Pandoc
+import qualified Text.Pandoc.Builder                  as Pandoc
+
+#ifdef COMPILE_TESTS
+import           Test.Framework                       (Test, testGroup)
+import           Test.Framework.Providers.QuickCheck2 (testProperty)
+import qualified Test.QuickCheck                      as Q
+#endif
 
 data FloatStyle = Standard | Fuzzy
   deriving Show
@@ -51,7 +62,7 @@ roundD sig (FloatD neg digits expon) =
     let digits' = take (sig + 1) $ digits ++ repeat 0
         roundedDown = init digits'
         (roundedUp, expon') =
-            if carry then (1:ds', expon + 1) else (ds', expon)
+            if carry then (1:init ds', expon + 1) else (ds', expon)
           where (ds', carry) = foldr f ([], True) $ init digits'
                 f 9 (ds, True) = (0 : ds, True)
                 f d (ds, True) = (d + 1 : ds, False)
@@ -126,3 +137,23 @@ renderFloat context num =
         <> if expon /= 0
             then "\215\&10" <> (Pandoc.superscript . Pandoc.str . show) expon
             else mempty
+
+#ifdef COMPILE_TESTS
+
+tests :: Test
+tests = testGroup "RenderFloat"
+    [ testProperty "prop_sigfig" prop_sigfig
+    ]
+
+prop_sigfig :: Double -> Q.Property
+prop_sigfig x = x /= 0 Q.==>
+    Q.forAll (Q.choose (1, 20)) $ \sig ->
+        let context = def{sigFigs=sig, style=Standard}
+            FloatPresentation _ pre point post _ =
+                presentFloat context x
+            sig' = if point
+                then length . dropWhile (==0) $ pre ++ post
+                else length . dropWhile (==0) . reverse $ pre
+        in sig == sig'
+
+#endif
