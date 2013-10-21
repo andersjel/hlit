@@ -33,7 +33,8 @@ library
     base >=4.6 && <4.7,
     pandoc-types,
     transformers,
-    data-default
+    data-default,
+    containers
   exposed-modules:
     Text.Lit.Render
     Text.Lit.Report
