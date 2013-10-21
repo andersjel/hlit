@@ -2,7 +2,7 @@
 module Lit.Interp
     ( Interp
     , Options (..)
-    , evalInline, evalBlock
+    , evalInline, evalBlock, exec
     , runInterp
     ) where
 
@@ -34,6 +34,12 @@ data Options = Options
     , ghcArgs   :: [String]
     }
 
+exec :: String -> Interp (Report ())
+exec expr = Interp $ do
+    result <- GHC.dynCompileExpr $ 
+        "(" ++ expr ++ ") :: Text.Lit.Report.Report ()"
+    return $ fromDyn result $ error "Could not execute code"
+
 evalBase :: Typeable a => String -> String -> Interp a
 evalBase f expr = Interp $ do
     result <- GHC.dynCompileExpr $ "Text.Lit.Render." ++ f ++ " (" ++ expr ++ ")"
@@ -54,6 +60,7 @@ runInterp opts (Interp act) =
                 parseGhcArguments $ ghcArgs opts
                 loadFile $ inputFile opts
                 importQualified "Text.Lit.Render"
+                importQualified "Text.Lit.Report"
                 act
 
 -- Do the equivalent of a GHCi :load.

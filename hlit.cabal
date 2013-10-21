@@ -34,6 +34,7 @@ library
     pandoc-types,
     transformers,
     data-default,
+    data-lens,
     containers
   exposed-modules:
     Text.Lit.Render

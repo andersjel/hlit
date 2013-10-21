@@ -1,10 +1,15 @@
-{-# LANGUAGE CPP               #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE CPP                #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE OverloadedStrings  #-}
 
 module Text.Lit.RenderFloat
     ( renderFloat
     , FloatStyle (..)
     , FloatContext (..)
+    , significantFigures
+    , largeFloatLimit
+    , smallFloatLimit
+    , floatStyle
 
 #ifdef COMPILE_TESTS
     , tests
@@ -12,8 +17,11 @@ module Text.Lit.RenderFloat
     ) where
 
 import           Data.Default
+import           Data.Lens.Common                     (Lens, lens)
 import           Data.Monoid
+import           Data.Typeable                        (Typeable)
 import qualified Numeric
+import           Text.Lit.Report                      (Config)
 import qualified Text.Pandoc.Builder                  as Pandoc
 
 #ifdef COMPILE_TESTS
@@ -31,7 +39,21 @@ data FloatContext = FloatContext
     , small   :: !Int
     , style   :: !FloatStyle
     }
-  deriving Show
+  deriving (Show, Typeable)
+
+instance Config FloatContext
+
+significantFigures :: Lens FloatContext Int
+significantFigures = lens sigFigs (\x c -> c{sigFigs=x})
+
+largeFloatLimit :: Lens FloatContext Int
+largeFloatLimit = lens large (\x c -> c{large=x})
+
+smallFloatLimit :: Lens FloatContext Int
+smallFloatLimit = lens small (\x c -> c{small=x})
+
+floatStyle :: Lens FloatContext FloatStyle
+floatStyle = lens style (\x c -> c{style=x})
 
 isFuzzy :: FloatContext -> Bool
 isFuzzy FloatContext{style=Fuzzy} = True
@@ -71,7 +93,7 @@ roundD sig (FloatD neg digits expon) =
         then FloatD neg roundedDown expon
         else FloatD neg roundedUp expon'
 
-data FloatPresentation = FloatPresentation
+data FloatPres = FloatPres
     Bool  -- ^ has minus sign
     [Int] -- ^ digits before decimal point
     Bool  -- ^ show decimal point
@@ -79,9 +101,9 @@ data FloatPresentation = FloatPresentation
     Int   -- ^ exponent
   deriving Show
 
-toExp :: FloatD -> FloatPresentation
+toExp :: FloatD -> FloatPres
 toExp (FloatD neg (d:ds) ex) =
-    FloatPresentation neg [d] True ds (ex - 1)
+    FloatPres neg [d] True ds (ex - 1)
 toExp _ = error "Malformed floatD."
 
 -- | Show a float without exponential notation.
@@ -91,7 +113,7 @@ toExp _ = error "Malformed floatD."
 --   that would imply only two significant figures, and it
 --   cannot be rendered as '1300.' because that would imply
 --   four signigicant figures.
-toNorm :: FloatD -> Maybe FloatPresentation
+toNorm :: FloatD -> Maybe FloatPres
 toNorm (FloatD neg ds ex) =
     let pre = if ex < 1 then [0] else take ex (ds ++ repeat 0)
         post = if ex < 0
@@ -100,15 +122,15 @@ toNorm (FloatD neg ds ex) =
         point = length ds >= ex
     in if not point && last ds == 0
         then Nothing
-        else Just $ FloatPresentation neg pre point post 0
+        else Just $ FloatPres neg pre point post 0
 
-dropZeroes :: FloatPresentation -> FloatPresentation
-dropZeroes (FloatPresentation neg pre point post ex) =
-    FloatPresentation neg pre point (f post) ex
+dropZeroes :: FloatPres -> FloatPres
+dropZeroes (FloatPres neg pre point post ex) =
+    FloatPres neg pre point (f post) ex
   where
     f = reverse . dropWhile (==0) . reverse
 
-presentFloat :: RealFloat a => FloatContext -> a -> FloatPresentation
+presentFloat :: RealFloat a => FloatContext -> a -> FloatPres
 presentFloat context num =
     let r@(FloatD _ _ expon) = toFloatD num
         sig = sigFigs context
@@ -122,13 +144,15 @@ presentFloat context num =
             _ | exponN > large context -> asExp
             Just x                     -> x
             Nothing                    -> asExp
-    in if isFuzzy context
-        then dropZeroes presentation
-        else presentation
+        zeroSpecialCase = FloatPres False [0] True [] 0
+    in case () of
+        _ | num == 0        -> zeroSpecialCase
+        _ | isFuzzy context -> dropZeroes presentation
+        _                   -> presentation
 
 renderFloat :: RealFloat a => FloatContext -> a -> Pandoc.Inlines
 renderFloat context num =
-    let FloatPresentation neg pre point post expon =
+    let FloatPres neg pre point post expon =
             presentFloat context num
     in  if neg then "-" else mempty
         <> Pandoc.str (concatMap show pre)
@@ -149,7 +173,7 @@ prop_sigfig :: Double -> Q.Property
 prop_sigfig x = x /= 0 Q.==>
     Q.forAll (Q.choose (1, 20)) $ \sig ->
         let context = def{sigFigs=sig, style=Standard}
-            FloatPresentation _ pre point post _ =
+            FloatPres _ pre point post _ =
                 presentFloat context x
             sig' = if point
                 then length . dropWhile (==0) $ pre ++ post
