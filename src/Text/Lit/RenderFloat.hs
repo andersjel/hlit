@@ -16,12 +16,13 @@ module Text.Lit.RenderFloat
 #endif
     ) where
 
+import           Control.Applicative
 import           Data.Default
 import           Data.Lens.Common                     (Lens, lens)
 import           Data.Monoid
 import           Data.Typeable                        (Typeable)
 import qualified Numeric
-import           Text.Lit.Report                      (Config)
+import           Text.Lit.Report                      (Config, Report, getC)
 import qualified Text.Pandoc.Builder                  as Pandoc
 
 #ifdef COMPILE_TESTS
@@ -150,17 +151,22 @@ presentFloat context num =
         _ | isFuzzy context -> dropZeroes presentation
         _                   -> presentation
 
-renderFloat :: RealFloat a => FloatContext -> a -> Pandoc.Inlines
-renderFloat context num =
+renderFloatC :: RealFloat a => FloatContext -> a -> Pandoc.Inlines
+renderFloatC context num =
     let FloatPres neg pre point post expon =
             presentFloat context num
-    in  if neg then "-" else mempty
-        <> Pandoc.str (concatMap show pre)
-        <> if point then "." else mempty
-        <> Pandoc.str (concatMap show post)
-        <> if expon /= 0
-            then "\215\&10" <> (Pandoc.superscript . Pandoc.str . show) expon
+        sign = if neg then "-" else mempty
+        pre' = Pandoc.str $ concatMap show pre
+        point' = if point then "." else mempty
+        post' =  Pandoc.str $ concatMap show post
+        exponFactor = Pandoc.superscript . Pandoc.str . show $ expon
+        expon' = if expon /= 0
+            then "\215\&10" <> exponFactor
             else mempty
+    in  sign <> pre' <> point' <> post' <> expon'
+
+renderFloat :: RealFloat a => a -> Report Pandoc.Inlines
+renderFloat num = renderFloatC <$> getC <*> pure num
 
 #ifdef COMPILE_TESTS
 

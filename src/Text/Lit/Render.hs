@@ -11,11 +11,19 @@ module Text.Lit.Render
 
 import           Control.Applicative
 import           Control.Monad.IO.Class (liftIO)
+import           Data.Monoid
+import           Text.Lit.RenderFloat   (renderFloat)
 import           Text.Lit.Report
 import qualified Text.Pandoc.Builder    as Pandoc
 
 class Render a where
     render :: a -> Report Pandoc.Inlines
+    renderAsList :: [a] -> Report Pandoc.Inlines
+    renderAsList xs = pure "[" <=> f xs <=> pure "]"
+      where f []  = pure mempty
+            f [x] = render x
+            f (x:xs') = render x <=> pure ", " <=> f xs'
+            (<=>) = liftA2 (<>)
 
 class RenderBlock a where
     renderBlock :: a -> Report Pandoc.Blocks
@@ -32,8 +40,12 @@ instance Render Pandoc.Inline where
 instance Render a => Render (IO a) where
     render x = render =<< liftIO x
 
-instance Render String where
-    render = return . Pandoc.text
+instance Render a => Render [a] where
+    render = renderAsList
+
+instance Render Char where
+    render = renderAsList . pure
+    renderAsList = return . Pandoc.text
 
 instance Render Int where
     render = render . show
@@ -45,10 +57,10 @@ instance Render Bool where
     render = render . show
 
 instance Render Float where
-    render = render . show
+    render = renderFloat
 
 instance Render Double where
-    render = render . show
+    render = renderFloat
 
 instance Render a => Render (Maybe a) where
     render (Just x) = render x
