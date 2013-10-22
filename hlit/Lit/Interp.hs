@@ -36,8 +36,13 @@ data Options = Options
     }
 
 evalBase :: Typeable a => String -> String -> Interp a
-evalBase f expr = Interp $ do
-    result <- GHC.dynCompileExpr $ "Text.Lit.Render." ++ f ++ " (" ++ expr ++ ")"
+evalBase typ expr = Interp $ do
+    let func = "Text.Lit.Render." ++ typ
+        indent = replicate 5 ' '
+        arg = unlines . map (indent ++) . lines $ expr
+        expr' = func ++ " (\n" ++ arg ++ "     )"
+    MonadUtils.liftIO $ putStrLn expr'
+    result <- GHC.dynCompileExpr expr'
     return $ fromDyn result $ error "Could not render expression"
 
 evalInline :: String -> Interp (Report Pandoc.Inlines)
