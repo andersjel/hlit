@@ -41,7 +41,6 @@ evalBase typ expr = Interp $ do
         indent = replicate 5 ' '
         arg = unlines . map (indent ++) . lines $ expr
         expr' = func ++ " (\n" ++ arg ++ "     )"
-    MonadUtils.liftIO $ putStrLn expr'
     result <- GHC.dynCompileExpr expr'
     return $ fromDyn result $ error "Could not render expression"
 
