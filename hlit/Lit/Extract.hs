@@ -40,7 +40,6 @@ exBlock (Plain inlines) = hasInlines Plain inlines
 exBlock (Para inlines) = hasInlines Para inlines
 exBlock (CodeBlock attr str) =
     case dropWhile isSpace str of
-        '@' : '\\' : expr -> IR (exec expr) *> pure []
         '@' : expr -> toList <$> IR (evalBlock expr)
         _ -> pure $ pure $ CodeBlock attr str
 exBlock r@(RawBlock _ _) = pure $ pure r

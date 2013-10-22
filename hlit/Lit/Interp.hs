@@ -2,7 +2,8 @@
 module Lit.Interp
     ( Interp
     , Options (..)
-    , evalInline, evalBlock, exec
+    , evalInline
+    , evalBlock
     , runInterp
     ) where
 
@@ -33,12 +34,6 @@ data Options = Options
     { inputFile :: FilePath
     , ghcArgs   :: [String]
     }
-
-exec :: String -> Interp (Report ())
-exec expr = Interp $ do
-    result <- GHC.dynCompileExpr $ 
-        "(" ++ expr ++ ") :: Text.Lit.Report.Report ()"
-    return $ fromDyn result $ error "Could not execute code"
 
 evalBase :: Typeable a => String -> String -> Interp a
 evalBase f expr = Interp $ do

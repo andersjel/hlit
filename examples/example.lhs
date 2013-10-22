@@ -37,7 +37,7 @@ Hlit has an extendable configuration system. (TODO, give an example)
 
 Before we had significantFigures = `@render =<< get significantFigures` and `@16486231234 :: Double`.
 
-    @\ do
+    @ do
         figs <- get significantFigures
         significantFigures $= figs + 2
         floatStyle $= Standard

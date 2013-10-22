@@ -43,6 +43,9 @@ instance Render a => Render (IO a) where
 instance Render a => Render [a] where
     render = renderAsList
 
+instance Render () where
+    render = const $ return mempty
+
 instance Render Char where
     render = renderAsList . pure
     renderAsList = return . Pandoc.text
@@ -69,6 +72,12 @@ instance Render a => Render (Maybe a) where
 instance (Render a, Render b) => Render (Either a b) where
     render (Right x) = render x
     render (Left x) = Pandoc.emph <$> render x
+
+instance RenderBlock () where
+    renderBlock = const $ return mempty
+
+instance RenderBlock (Report ()) where
+    renderBlock a = a *> return mempty
 
 instance RenderBlock Pandoc.Blocks where
     renderBlock = return
