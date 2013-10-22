@@ -157,7 +157,7 @@ splitThousands digits =
     if length digits < 5 then r digits else f groups
   where
     groups = reverse . chunksOf 3 . reverse $ digits
-    f [] = mempty
+    f [] = ""
     f [g] = r g
     f (g:gs) = r g ++ "," ++ f gs
     r = concatMap show
@@ -172,7 +172,7 @@ renderFloatC context num =
         post' =  concatMap show post
         expon' = if expon /= 0
             then "\\times10^{" ++ show expon ++ "}"
-            else mempty
+            else ""
     in  Pandoc.math $ sign ++ pre' ++ point' ++ post' ++ expon'
 
 renderFloat :: RealFloat a => a -> Report Pandoc.Inlines
