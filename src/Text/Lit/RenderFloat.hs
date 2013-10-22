@@ -152,31 +152,28 @@ presentFloat context num =
         _ | isFuzzy context -> dropZeroes presentation
         _                   -> presentation
 
-splitThousands :: [Int] -> Pandoc.Inlines
+splitThousands :: [Int] -> String
 splitThousands digits =
     if length digits < 5 then r digits else f groups
   where
     groups = reverse . chunksOf 3 . reverse $ digits
     f [] = mempty
     f [g] = r g
-    f (g:gs) = r g <> "," <> f gs
-    r g = Pandoc.str $ concatMap show g
+    f (g:gs) = r g ++ "," ++ f gs
+    r = concatMap show
 
 renderFloatC :: RealFloat a => FloatContext -> a -> Pandoc.Inlines
 renderFloatC context num =
     let FloatPres neg pre point post expon =
             presentFloat context num
-        sign = if neg then "-" else mempty
+        sign = if neg then "-" else ""
         pre' = splitThousands pre
-        point' = if point then "." else mempty
-        post' =  Pandoc.str $ concatMap show post
-        exponFactor = Pandoc.superscript . Pandoc.str . show $ expon
+        point' = if point then "." else ""
+        post' =  concatMap show post
         expon' = if expon /= 0
-            -- \8239 is a thin no-break space,
-            -- \215 is a multiplication sign.
-            then "\8239\215\8239\&10" <> exponFactor
+            then "\\times10^{" ++ show expon ++ "}"
             else mempty
-    in  sign <> pre' <> point' <> post' <> expon'
+    in  Pandoc.math $ sign ++ pre' ++ point' ++ post' ++ expon'
 
 renderFloat :: RealFloat a => a -> Report Pandoc.Inlines
 renderFloat num = renderFloatC <$> getC <*> pure num
