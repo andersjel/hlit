@@ -19,6 +19,7 @@ module Text.Lit.RenderFloat
 import           Control.Applicative
 import           Data.Default
 import           Data.Lens.Common                     (Lens, lens)
+import           Data.List.Split                      (chunksOf)
 import           Data.Monoid
 import           Data.Typeable                        (Typeable)
 import qualified Numeric
@@ -151,17 +152,29 @@ presentFloat context num =
         _ | isFuzzy context -> dropZeroes presentation
         _                   -> presentation
 
+splitThousands :: [Int] -> Pandoc.Inlines
+splitThousands digits =
+    if length digits < 5 then r digits else f groups
+  where
+    groups = reverse . chunksOf 3 . reverse $ digits
+    f [] = mempty
+    f [g] = r g
+    f (g:gs) = r g <> "," <> f gs
+    r g = Pandoc.str $ concatMap show g
+
 renderFloatC :: RealFloat a => FloatContext -> a -> Pandoc.Inlines
 renderFloatC context num =
     let FloatPres neg pre point post expon =
             presentFloat context num
         sign = if neg then "-" else mempty
-        pre' = Pandoc.str $ concatMap show pre
+        pre' = splitThousands pre
         point' = if point then "." else mempty
         post' =  Pandoc.str $ concatMap show post
         exponFactor = Pandoc.superscript . Pandoc.str . show $ expon
         expon' = if expon /= 0
-            then "\215\&10" <> exponFactor
+            -- \8239 is a thin no-break space,
+            -- \215 is a multiplication sign.
+            then "\8239\215\8239\&10" <> exponFactor
             else mempty
     in  sign <> pre' <> point' <> post' <> expon'
 
