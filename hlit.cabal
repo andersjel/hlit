@@ -63,6 +63,8 @@ executable hlit
     data-lens-template,
     ghc,
     ghc-paths,
+    haskell-src-exts,
+    mtl,
     pandoc,
     pandoc-types,
     process-extras,
