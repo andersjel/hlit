@@ -20,7 +20,6 @@ import           Control.Applicative
 import           Data.Default
 import           Data.Lens.Common                     (Lens, lens)
 import           Data.List.Split                      (chunksOf)
-import           Data.Monoid
 import           Data.Typeable                        (Typeable)
 import qualified Numeric
 import           Text.Lit.Report                      (Config, Report, getC)
