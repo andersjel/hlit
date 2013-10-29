@@ -60,7 +60,7 @@ data Options = Options
 instance Default Options where
     def = Options
         { inputFilePath = def
-        , inputContent = def
+        , inputContent = "module SpliceBase where\n"
         , spliceImports = []
         , mainImports = []
         , mainRun = H.lamE noLoc [H.pTuple []] (H.function "id")
