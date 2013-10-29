@@ -9,24 +9,28 @@ module Lit.Splice
     , tests
     ) where
 
+import           Prelude                        hiding (FilePath)
+
 import           Control.Applicative
-import           Control.Monad.Error          (runErrorT, throwError)
-import qualified Control.Monad.Error          as Err
-import           Control.Monad.IO.Class       (liftIO)
-import           Control.Monad.State.Strict   (StateT)
-import qualified Control.Monad.State.Strict   as State
-import qualified Data.Aeson                   as Aeson
-import           Data.Data                    (Data, Typeable, cast, gmapT)
+import           Control.Monad.Error            (runErrorT, throwError)
+import qualified Control.Monad.Error            as Err
+import           Control.Monad.IO.Class         (liftIO)
+import           Control.Monad.State.Strict     (StateT)
+import qualified Control.Monad.State.Strict     as State
+import qualified Data.Aeson                     as Aeson
+import           Data.Data                      (Data, Typeable, cast, gmapT)
 import           Data.Default
-import           Data.Foldable                (toList)
+import           Data.Foldable                  (toList)
 import           Data.Maybe
 import           Data.Monoid
-import           Data.Sequence                (Seq)
-import qualified Data.Sequence                as Seq
+import           Data.Sequence                  (Seq)
+import qualified Data.Sequence                  as Seq
 import           Data.Traversable
-import qualified Language.Haskell.Exts        as H
-import           Language.Haskell.Exts.SrcLoc (noLoc)
-import qualified System.IO                    as IO
+import qualified Language.Haskell.Exts          as H
+import           Language.Haskell.Exts.SrcLoc   (noLoc)
+import           System.IO                      as IO
+import           System.IO.Temp                 (withTempDirectory)
+import           System.FilePath                (combine)
 
 import           Test.Framework                 (Test, testGroup)
 import           Test.Framework.Providers.HUnit (testCase)
@@ -55,15 +59,17 @@ data Options = Options
     , spliceImports :: [H.ImportDecl]
     , mainImports   :: [H.ImportDecl]
     , mainRun       :: H.Exp
+    , outputDir     :: Maybe FilePath
     }
 
 instance Default Options where
     def = Options
         { inputFilePath = def
-        , inputContent = "module SpliceBase where\n"
+        , inputContent  = "module SpliceBase where\n"
         , spliceImports = []
-        , mainImports = []
-        , mainRun = H.lamE noLoc [H.pTuple []] (H.function "id")
+        , mainImports   = []
+        , mainRun       = H.lamE noLoc [H.pTuple []] (H.function "id")
+        , outputDir     = def
         }
 
 instance Err.Error Error where
@@ -80,11 +86,6 @@ splice expr = Splice (Seq.singleton expr) $ do
         Aeson.Success x -> return x
         Aeson.Error x -> throwError $ CommunicationError x
 
-data SpliceModules = SpliceModules
-    { spliceMod :: H.Module
-    , mainMod   :: H.Module
-    }
-
 -- | Transform immediate subterms if they have type b.
 tmap :: (Data a, Typeable b) => (b -> b) -> a -> a
 tmap f = gmapT g
@@ -92,38 +93,47 @@ tmap f = gmapT g
     g :: Typeable c => c -> c
     g t = fromMaybe t $ cast =<< (f <$> cast t)
 
-withParseError :: H.ParseResult a -> Either Error a
-withParseError (H.ParseOk x) = return x
-withParseError (H.ParseFailed _ s) = throwError $ ParseError s
+fromParseError :: H.ParseResult a -> Either Error a
+fromParseError (H.ParseOk x) = return x
+fromParseError (H.ParseFailed _ s) = throwError $ ParseError s
 
-withEither :: Err.MonadError a m => Either a b -> m b
-withEither (Right x) = return x
-withEither (Left x) = throwError x
+fromEither :: Err.MonadError a m => Either a b -> m b
+fromEither (Right x) = return x
+fromEither (Left x) = throwError x
 
-mkSpliceModules :: Options -> Splice a -> Either Error SpliceModules
-mkSpliceModules opts (Splice exprs _) = do
-    spliceModBase <- withParseError $ H.parseFileContents $ inputContent opts
+mkSpliceNames :: Int -> [H.Name]
+mkSpliceNames = H.genNames "_hlit_splice"
+
+spliceModName :: H.ModuleName
+spliceModName = H.ModuleName "HLitSpliceMod"
+
+mkSpliceMod :: Options -> Splice a -> Either Error H.Module
+mkSpliceMod opts (Splice exprs _) = do
+    spliceModBase <- fromParseError $ H.parseFileContents $ inputContent opts
     parsedExprs <- for exprs $ \(Expr typ expr) -> do
-        expr' <- withParseError $ H.parse expr
+        expr' <- fromParseError $ H.parse expr
         return (typ, expr' :: H.Exp)
-    let names            = H.genNames "_hlit_splice" $ Seq.length exprs
-        spliceModName    = H.ModuleName "HLitSpliceMod"
-        spliceMod_       
+    let names            = mkSpliceNames $ Seq.length exprs
+        spliceMod       
             = tmap setName 
             . tmap addExports 
-            . tmap addSplices 
             . tmap addSpliceImports 
+            . tmap addSplices 
             $ spliceModBase
-        addSpliceImports = (++ spliceImports opts)
-        addSplices       = (++ splices)
+        setName          = const spliceModName
         addExports :: Maybe [H.ExportSpec] -> Maybe [H.ExportSpec]
         addExports       = fmap (++ map (H.EVar . H.UnQual) names)
-        setName          = const spliceModName
+        addSpliceImports = (++ spliceImports opts)
+        addSplices       = (++ splices)
         splices          = concatMap toSplice $ zip names (toList parsedExprs)
         toSplice (name, (typ, expr)) =
             [ H.TypeSig noLoc [name] typ
             , H.nameBind noLoc name expr]
-    mainModBase <- withParseError $ H.parse
+    return spliceMod
+
+mkMainMod :: Options -> Splice a -> Either Error H.Module
+mkMainMod opts (Splice exprs _) = do
+    mainModBase <- fromParseError $ H.parse
         "module Main where\n\
         \import qualified HLitSpliceMod        as S\n\
         \import qualified Text.Aeson           as A\n\
@@ -133,7 +143,8 @@ mkSpliceModules opts (Splice exprs _) = do
         \  Just input <- A.decode <$> B.getContents\n\
         \  output <- mainRun input $ sequence splices\n\
         \  B.putStr $ A.encode output\n"
-    let mainMod_       = addMainExpr . addMainImports $ mainModBase
+    let names          = mkSpliceNames $ Seq.length exprs
+        mainMod       = addMainExpr . addMainImports $ mainModBase
         addMainExpr    = tmap (++ mainModDecls)
         addMainImports = tmap (++ mainImports opts)
         mainModDecls   =
@@ -142,15 +153,23 @@ mkSpliceModules opts (Splice exprs _) = do
                 map (H.app (H.app (H.function "fmap") (H.function "toJSON"))
                     . H.qvar spliceModName) names
             ]
-    return $ SpliceModules spliceMod_ mainMod_
+    return mainMod
+
+withOutputDir :: Options -> (FilePath -> IO a) -> IO a
+withOutputDir opts act =
+    case outputDir opts of
+        Just d -> act d
+        Nothing -> withTempDirectory "." "splice." act
 
 runSplice :: Options -> Splice a -> IO (Either Error a)
-runSplice opts spl = runErrorT $ do
-    mods <- withEither $ mkSpliceModules opts spl
-    liftIO $ IO.withFile "HLitSpliceMod.hs" IO.WriteMode $ \h ->
-        IO.hPutStrLn h $ H.prettyPrint $ spliceMod mods
-    liftIO $ IO.withFile "HLitSpliceMain.hs" IO.WriteMode $ \h ->
-        IO.hPutStrLn h $ H.prettyPrint $ mainMod mods
+runSplice opts spl = withOutputDir opts $ \outDir -> runErrorT $ do
+    spliceMod <- fromEither $ mkSpliceMod opts spl
+    mainMod   <- fromEither $ mkMainMod opts spl
+    let storeMod path m = liftIO $ 
+            IO.withFile (combine outDir path) IO.WriteMode $ \h ->
+                IO.hPutStrLn h $ H.prettyPrint m
+    storeMod "HLitSpliceMod.hs" spliceMod
+    storeMod "HLitSpliceMain.hs" mainMod
     undefined
 
 tests :: Test
@@ -162,7 +181,7 @@ case_basic_splice :: HU.Assertion
 case_basic_splice = do
     let typ = H.TyApp (t "IO") (t "Int")
         t = H.TyCon . H.UnQual . H.name
-    r <- runSplice def $ 
+    r <- runSplice def{outputDir=Just "splices"} $ 
         (+) <$> pure (2 :: Int) <*> splice (Expr typ "1 + 2")
     v <- case r of 
         Left x -> error $ show x

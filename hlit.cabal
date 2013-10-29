@@ -64,6 +64,7 @@ executable hlit
     data-default,
     data-lens,
     data-lens-template,
+    filepath,
     ghc,
     ghc-paths,
     haskell-src-exts,
@@ -71,6 +72,7 @@ executable hlit
     pandoc,
     pandoc-types,
     process-extras,
+    temporary,
     transformers,
     -- Needed just for testing
     HUnit,
@@ -97,6 +99,7 @@ test-suite tests
     data-default,
     data-lens,
     data-lens-template,
+    filepath,
     ghc,
     ghc-paths,
     haskell-src-exts,
@@ -104,7 +107,7 @@ test-suite tests
     pandoc,
     pandoc-types,
     process-extras,
-    QuickCheck,
+    temporary,
     transformers,
     -- Needed just for testing
     HUnit,
