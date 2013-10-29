@@ -49,10 +49,12 @@ library
     Build-depends:
       test-framework,
       test-framework-quickcheck2,
-      QuickCheck
+      test-framework-hunit,
+      QuickCheck,
+      HUnit
 
 executable hlit
-  main-is:             Main.hs
+  main-is:             hlit.hs
   build-depends:
     hlit,
     base >=4.6 && <4.7,
@@ -69,17 +71,43 @@ executable hlit
     pandoc,
     pandoc-types,
     process-extras,
-    transformers
+    transformers,
+    -- Needed just for testing
+    HUnit,
+    test-framework,
+    test-framework-hunit,
+    test-framework-quickcheck2
   hs-source-dirs:      hlit
   default-language:    Haskell2010
   ghc-options:         -Wall -fno-warn-unused-do-bind
 
 test-suite tests
   type:             exitcode-stdio-1.0
-  hs-source-dirs:   tests
+  hs-source-dirs:   tests, hlit
   default-language: Haskell2010
-  main-is:          main.hs
+  ghc-options:      -Wall -fno-warn-unused-do-bind
+  main-is:          tests.hs
   build-depends:
-    base,
+    -- Copied from hlit executable
     hlit,
-    test-framework
+    base >=4.6 && <4.7,
+    aeson,
+    bytestring,
+    containers,
+    data-default,
+    data-lens,
+    data-lens-template,
+    ghc,
+    ghc-paths,
+    haskell-src-exts,
+    mtl,
+    pandoc,
+    pandoc-types,
+    process-extras,
+    QuickCheck,
+    transformers,
+    -- Needed just for testing
+    HUnit,
+    test-framework,
+    test-framework-hunit,
+    test-framework-quickcheck2
