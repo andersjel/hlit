@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module Lit.Splice
     ( Splice
     , Expr (..)
@@ -9,15 +11,14 @@ module Lit.Splice
     , tests
     ) where
 
-import           Prelude                        hiding (FilePath)
-
 import           Control.Applicative
 import           Control.Monad.Error            (runErrorT, throwError)
 import qualified Control.Monad.Error            as Err
-import           Control.Monad.IO.Class         (liftIO)
+import           Control.Monad.IO.Class         (MonadIO, liftIO)
 import           Control.Monad.State.Strict     (StateT)
 import qualified Control.Monad.State.Strict     as State
 import qualified Data.Aeson                     as Aeson
+import qualified Data.ByteString.Lazy           as BL
 import           Data.Data                      (Data, Typeable, cast, gmapT)
 import           Data.Default
 import           Data.Foldable                  (toList)
@@ -28,9 +29,12 @@ import qualified Data.Sequence                  as Seq
 import           Data.Traversable
 import qualified Language.Haskell.Exts          as H
 import           Language.Haskell.Exts.SrcLoc   (noLoc)
-import           System.IO                      as IO
-import           System.IO.Temp                 (withTempDirectory)
+import           System.Exit                    (ExitCode (..))
 import           System.FilePath                (combine)
+import qualified System.IO                      as IO
+import           System.IO.Temp                 (withTempDirectory)
+import qualified System.Process                 as Process
+import           System.Process.ByteString.Lazy (readProcessWithExitCode)
 
 import           Test.Framework                 (Test, testGroup)
 import           Test.Framework.Providers.HUnit (testCase)
@@ -52,6 +56,7 @@ data Error
     = CommunicationError String
     | MiscError String
     | ParseError String
+    | CommandError String [String] Int
     deriving (Show)
 data Options = Options
     { inputFilePath :: Maybe FilePath
@@ -131,16 +136,16 @@ mkSpliceMod opts (Splice exprs _) = do
             , H.nameBind noLoc name expr]
     return spliceMod
 
-mkMainMod :: Options -> Splice a -> Either Error H.Module
+mkMainMod :: Options -> Splice b -> Either Error H.Module
 mkMainMod opts (Splice exprs _) = do
     mainModBase <- fromParseError $ H.parse
         "module Main where\n\
-        \import qualified HLitSpliceMod        as S\n\
-        \import qualified Text.Aeson           as A\n\
-        \import           Text.Aeson           (toJSON)\n\
+        \import qualified HLitSpliceMod\n\
+        \import qualified Data.Aeson           as A\n\
+        \import           Data.Aeson           (toJSON)\n\
         \import qualified Data.ByteString.Lazy as B\n\
         \main = do\n\
-        \  Just input <- A.decode <$> B.getContents\n\
+        \  Just input <- A.decode `fmap` B.getContents\n\
         \  output <- mainRun input $ sequence splices\n\
         \  B.putStr $ A.encode output\n"
     let names          = mkSpliceNames $ Seq.length exprs
@@ -161,16 +166,54 @@ withOutputDir opts act =
         Just d -> act d
         Nothing -> withTempDirectory "." "splice." act
 
-runSplice :: Options -> Splice a -> IO (Either Error a)
-runSplice opts spl = withOutputDir opts $ \outDir -> runErrorT $ do
-    spliceMod <- fromEither $ mkSpliceMod opts spl
-    mainMod   <- fromEither $ mkMainMod opts spl
-    let storeMod path m = liftIO $ 
-            IO.withFile (combine outDir path) IO.WriteMode $ \h ->
-                IO.hPutStrLn h $ H.prettyPrint m
-    storeMod "HLitSpliceMod.hs" spliceMod
-    storeMod "HLitSpliceMain.hs" mainMod
-    undefined
+checkCall :: (Err.MonadError Error m, MonadIO m) => FilePath -> [String] -> m ()
+checkCall com args = do
+    exitCode <- liftIO $ Process.rawSystem com args
+    case exitCode of
+        ExitSuccess   -> return ()
+        ExitFailure n -> throwError $ CommandError com args n
+
+checkProcess 
+    :: (Err.MonadError Error m, MonadIO m) 
+    => FilePath         -- ^ Command to run
+    -> [String]         -- ^ Arguments
+    -> BL.ByteString    -- ^ Standard input
+    -> m BL.ByteString -- ^ Standard output
+checkProcess com args stdin = do
+    (exitCode, stdout, stderr) <- liftIO $
+        readProcessWithExitCode com args stdin
+    liftIO $ BL.hPutStr IO.stderr stderr
+    case exitCode of
+        ExitSuccess   -> return stdout
+        ExitFailure n -> throwError $ CommandError com args n
+
+runSplice 
+    :: (Aeson.ToJSON b) 
+    => Options 
+    -> b 
+    -> Splice a 
+    -> IO (Either Error a)
+runSplice opts arg spl@(Splice _ loader) 
+    = withOutputDir opts $ \outDir -> runErrorT $ do
+        spliceMod <- fromEither $ mkSpliceMod opts spl
+        mainMod   <- fromEither $ mkMainMod opts spl
+        let storeMod path m = liftIO $ 
+                IO.withFile path IO.WriteMode $ \h ->
+                    IO.hPutStrLn h $ H.prettyPrint m
+            spliceModPath = combine outDir "HLitSpliceMod.hs"
+            mainModPath = combine outDir "HLitSpliceMain.hs"
+            mainPath = combine outDir "HLitSpliceMain"
+        storeMod spliceModPath spliceMod
+        storeMod mainModPath mainMod
+        checkCall "ghc" 
+            ["-outputdir", outDir, "-i" ++ outDir, spliceModPath]
+        checkCall "ghc" 
+            ["-outputdir", outDir, "-i" ++ outDir, "-o", mainPath, mainModPath]
+        output <- checkProcess mainPath [] $ Aeson.encode arg
+        splices <- case Aeson.eitherDecode output of
+            Left x  -> throwError $ CommunicationError x
+            Right x -> return (x :: [Aeson.Value])
+        fromEither $ State.evalStateT loader splices
 
 tests :: Test
 tests = testGroup "Splice"
@@ -181,8 +224,8 @@ case_basic_splice :: HU.Assertion
 case_basic_splice = do
     let typ = H.TyApp (t "IO") (t "Int")
         t = H.TyCon . H.UnQual . H.name
-    r <- runSplice def{outputDir=Just "splices"} $ 
-        (+) <$> pure (2 :: Int) <*> splice (Expr typ "1 + 2")
+    r <- runSplice def{outputDir=Just "splices"} () $ 
+        (+) <$> pure (2 :: Int) <*> splice (Expr typ "return $ 1 + 2")
     v <- case r of 
         Left x -> error $ show x
         Right x -> return x
