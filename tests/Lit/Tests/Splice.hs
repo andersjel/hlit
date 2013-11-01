@@ -15,13 +15,13 @@ tests = testGroup "Splice"
 
 case_basic_splice :: Assertion
 case_basic_splice = do
-    let mkTyp s = typ
-          where H.ParseOk typ = H.parse s
-        mkSpl s x = splice $ Expr (mkTyp s) (deferParse x)
+    let p s = x
+          where H.ParseOk x = H.parse s
+        mkSpl t x = splice (p t) (p x)
         testSplice = (,,) <$> mkSpl "IO Int" "return 10" 
                           <*> pure ()
                           <*> mkSpl "IO String" "return \"test\""
-    r <- runSplice def{outputDir=Just "splices"} () testSplice
+    r <- runSplice def () testSplice
     v <- case r of
         Left x -> error $ show x
         Right x -> return x

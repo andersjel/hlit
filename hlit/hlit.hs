@@ -13,16 +13,18 @@ import           Data.Foldable                  (for_)
 import           Data.Lens.Common
 import           Data.Lens.Template
 import           Data.Maybe                     (fromMaybe)
-import           Lit.Extract                    (extract)
-import qualified Lit.Interp                     as Interp
+import qualified Language.Haskell.Exts          as H
+import           Language.Haskell.Exts.SrcLoc   (noLoc)
+import           Lit.Extract                    (Extraction (..), extract)
+import qualified Lit.Splice                     as Splice
+import           Lit.Splice                     (Splice)
 import           System.Console.GetOpt          (ArgDescr (..), OptDescr (..))
 import qualified System.Console.GetOpt          as GetOpt
 import           System.Environment             (getArgs)
 import           System.Exit                    (ExitCode (..), exitFailure)
 import qualified System.IO                      as IO
 import           System.Process.ByteString.Lazy (readProcessWithExitCode)
-import           Text.Lit.Report                (Report, runReport)
-import           Text.Pandoc                    (Pandoc)
+import           Text.Pandoc.Builder            (Pandoc)
 
 data Arguments = Arguments
     { ghcOptions    :: [String]
@@ -120,19 +122,42 @@ writeDoc args doc = do
     output <- callProcess (pandocExe args) args' $ Aeson.encode doc
     hPut IO.stdout output
 
-extractReport :: Arguments -> Pandoc -> IO (Report Pandoc)
-extractReport args doc = do
-    let interpOptions = Interp.Options
-            { Interp.inputFile = inputFile args
-            , Interp.ghcArgs   = ghcOptions args
+runSplice :: Arguments -> H.Module -> Splice Pandoc -> IO Pandoc
+runSplice args inputModule spl = do
+    let qualImport x = H.ImportDecl noLoc
+            (H.ModuleName x)
+            True    -- ^ Qualified
+            False   -- ^ With SOURCE pragma?
+            Nothing -- ^ Package name
+            Nothing -- ^ As ...
+            Nothing -- ^ Import specs
+        opt :: Splice.Options
+        opt = def
+            { Splice.inputFilePath = Just $ inputFile args
+            , Splice.inputContent  = inputModule
+            , Splice.spliceImports =
+                [ qualImport "Text.Lit.Render"
+                , qualImport "Data.Foldable"
+                , qualImport "Text.Pandoc.Builder"
+                ]
+            , Splice.mainImports   = [qualImport "Text.Lit.Report"]
+            , Splice.mainRun       = mainRunExpr
+            , Splice.outputDir     = Nothing
+            , Splice.ghcOptions    = ghcOptions args
             }
-    Interp.runInterp interpOptions $ extract doc
+        H.ParseOk mainRunExpr = H.parse "\\() -> Text.Lit.Report.runReport"
+    Splice.runSplice opt () spl >>= \r -> case r of
+        Right x -> return x
+        Left err -> print err >> fail "Conversion failed."
 
 run :: Arguments -> IO ()
 run args = do
     doc <- readDoc args
-    report <- extractReport args doc
-    doc' <- runReport report
+    let Extraction code spl = extract doc
+    inputModule <- case H.parse code of
+        H.ParseOk x -> return x
+        failure -> fail $ show failure
+    doc' <- runSplice args inputModule spl
     writeDoc args doc'
 
 main :: IO ()

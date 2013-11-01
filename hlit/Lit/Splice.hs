@@ -2,12 +2,10 @@
 
 module Lit.Splice
     ( Splice
-    , Expr (..)
     , Error (..)
     , Options (..)
     , splice
     , runSplice
-    , deferParse
     ) where
 
 import           Control.Applicative
@@ -60,6 +58,7 @@ data Options = Options
     , mainImports   :: [H.ImportDecl]
     , mainRun       :: H.Exp
     , outputDir     :: Maybe FilePath
+    , ghcOptions    :: [String]
     }
 
 instance Default Options where
@@ -70,6 +69,7 @@ instance Default Options where
         , mainImports   = []
         , mainRun       = H.lamE noLoc [H.pTuple []] (H.function "id")
         , outputDir     = def
+        , ghcOptions    = def
         }
       where
         H.ParseOk base = H.parse "module SpliceBase where\n"
@@ -80,8 +80,8 @@ instance Err.Error Error where
 
 type Load = StateT [Aeson.Value] (Either Error)
 
-splice :: Aeson.FromJSON a => Expr -> Splice a
-splice expr = Splice (Seq.singleton expr) $ do
+splice :: Aeson.FromJSON a => H.Type -> H.Exp -> Splice a
+splice typ expr = Splice (Seq.singleton $ Expr typ expr) $ do
     (v:vs) <- State.get
     State.put vs
     case Aeson.fromJSON v of
@@ -192,20 +192,14 @@ runSplice opts arg spl@(Splice _ loader)
             mainPath = combine outDir "HLitSpliceMain"
         storeMod spliceModPath spliceMod
         storeMod mainModPath mainMod
-        checkCall "ghc" 
+        checkCall "ghc" $
+            ghcOptions opts ++
             ["-outputdir", outDir, "-i" ++ outDir, spliceModPath]
-        checkCall "ghc" 
+        checkCall "ghc" $
+            ghcOptions opts ++
             ["-outputdir", outDir, "-i" ++ outDir, "-o", mainPath, mainModPath]
         output <- checkProcess mainPath [] $ Aeson.encode arg
         splices <- case Aeson.eitherDecode output of
             Left x  -> throwError $ CommunicationError x
             Right x -> return (x :: [Aeson.Value])
         fromEither $ State.evalStateT loader splices
-
--- | Parse a string to an expression. If there is a parse error,
---   then the returned expression is a call to `fail`.
-deferParse :: String -> H.Exp
-deferParse s = case H.parse s of
-    H.ParseOk x -> x
-    H.ParseFailed _ r -> H.app (H.function "fail") $ 
-        H.strE $ "Parse error: " ++ r
