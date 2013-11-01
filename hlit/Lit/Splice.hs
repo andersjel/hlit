@@ -7,8 +7,7 @@ module Lit.Splice
     , Options (..)
     , splice
     , runSplice
-
-    , tests
+    , deferParse
     ) where
 
 import           Control.Applicative
@@ -26,7 +25,6 @@ import           Data.Maybe
 import           Data.Monoid
 import           Data.Sequence                  (Seq)
 import qualified Data.Sequence                  as Seq
-import           Data.Traversable
 import qualified Language.Haskell.Exts          as H
 import           Language.Haskell.Exts.SrcLoc   (noLoc)
 import           System.Exit                    (ExitCode (..))
@@ -35,10 +33,6 @@ import qualified System.IO                      as IO
 import           System.IO.Temp                 (withTempDirectory)
 import qualified System.Process                 as Process
 import           System.Process.ByteString.Lazy (readProcessWithExitCode)
-
-import           Test.Framework                 (Test, testGroup)
-import           Test.Framework.Providers.HUnit (testCase)
-import qualified Test.HUnit                     as HU
 
 data Splice a = Splice
     (Seq Expr) -- ^ The expressions that need to be compiled
@@ -51,16 +45,17 @@ instance Applicative Splice where
     pure = Splice mempty . pure
     Splice sx x <*> Splice sy y = Splice (sx <> sy) (x <*> y)
 
-data Expr = Expr H.Type String
+data Expr = Expr H.Type H.Exp
+
 data Error
     = CommunicationError String
     | MiscError String
-    | ParseError String
     | CommandError String [String] Int
     deriving (Show)
+
 data Options = Options
     { inputFilePath :: Maybe FilePath
-    , inputContent  :: String
+    , inputContent  :: H.Module
     , spliceImports :: [H.ImportDecl]
     , mainImports   :: [H.ImportDecl]
     , mainRun       :: H.Exp
@@ -70,12 +65,14 @@ data Options = Options
 instance Default Options where
     def = Options
         { inputFilePath = def
-        , inputContent  = "module SpliceBase where\n"
+        , inputContent  = base
         , spliceImports = []
         , mainImports   = []
         , mainRun       = H.lamE noLoc [H.pTuple []] (H.function "id")
         , outputDir     = def
         }
+      where
+        H.ParseOk base = H.parse "module SpliceBase where\n"
 
 instance Err.Error Error where
     noMsg = Err.strMsg "Unknown error"
@@ -98,10 +95,6 @@ tmap f = gmapT g
     g :: Typeable c => c -> c
     g t = fromMaybe t $ cast =<< (f <$> cast t)
 
-fromParseError :: H.ParseResult a -> Either Error a
-fromParseError (H.ParseOk x) = return x
-fromParseError (H.ParseFailed _ s) = throwError $ ParseError s
-
 fromEither :: Err.MonadError a m => Either a b -> m b
 fromEither (Right x) = return x
 fromEither (Left x) = throwError x
@@ -112,33 +105,27 @@ mkSpliceNames = H.genNames "_hlit_splice"
 spliceModName :: H.ModuleName
 spliceModName = H.ModuleName "HLitSpliceMod"
 
-mkSpliceMod :: Options -> Splice a -> Either Error H.Module
-mkSpliceMod opts (Splice exprs _) = do
-    spliceModBase <- fromParseError $ H.parseFileContents $ inputContent opts
-    parsedExprs <- for exprs $ \(Expr typ expr) -> do
-        expr' <- fromParseError $ H.parse expr
-        return (typ, expr' :: H.Exp)
-    let names            = mkSpliceNames $ Seq.length exprs
-        spliceMod       
-            = tmap setName 
-            . tmap addExports 
-            . tmap addSpliceImports 
-            . tmap addSplices 
-            $ spliceModBase
-        setName          = const spliceModName
-        addExports :: Maybe [H.ExportSpec] -> Maybe [H.ExportSpec]
-        addExports       = fmap (++ map (H.EVar . H.UnQual) names)
-        addSpliceImports = (++ spliceImports opts)
-        addSplices       = (++ splices)
-        splices          = concatMap toSplice $ zip names (toList parsedExprs)
-        toSplice (name, (typ, expr)) =
-            [ H.TypeSig noLoc [name] typ
-            , H.nameBind noLoc name expr]
-    return spliceMod
+mkSpliceMod :: Options -> Splice a -> H.Module
+mkSpliceMod opts (Splice exprs _) 
+    = tmap setName 
+    . tmap addExports . tmap addSpliceImports . tmap addSplices
+    $ inputContent opts
+  where
+    setName          = const spliceModName
+    names            = mkSpliceNames $ Seq.length exprs
+    addExports :: Maybe [H.ExportSpec] -> Maybe [H.ExportSpec]
+    addExports       = fmap (++ map (H.EVar . H.UnQual) names)
+    addSpliceImports = (++ spliceImports opts)
+    addSplices       = (++ splices)
+    splices          = concat $ zipWith toSplice names (toList exprs)
+    toSplice name (Expr typ expr) =
+        [ H.TypeSig noLoc [name] typ
+        , H.nameBind noLoc name expr]
 
-mkMainMod :: Options -> Splice b -> Either Error H.Module
-mkMainMod opts (Splice exprs _) = do
-    mainModBase <- fromParseError $ H.parse
+mkMainMod :: Options -> Splice b -> H.Module
+mkMainMod opts (Splice exprs _) = mainMod
+  where
+    H.ParseOk mainModBase = H.parse
         "module Main where\n\
         \import qualified HLitSpliceMod\n\
         \import qualified Data.Aeson           as A\n\
@@ -148,17 +135,16 @@ mkMainMod opts (Splice exprs _) = do
         \  Just input <- A.decode `fmap` B.getContents\n\
         \  output <- mainRun input $ sequence splices\n\
         \  B.putStr $ A.encode output\n"
-    let names          = mkSpliceNames $ Seq.length exprs
-        mainMod       = addMainExpr . addMainImports $ mainModBase
-        addMainExpr    = tmap (++ mainModDecls)
-        addMainImports = tmap (++ mainImports opts)
-        mainModDecls   =
-            [ H.nameBind noLoc (H.name "mainRun") $ mainRun opts
-            , H.nameBind noLoc (H.name "splices") $ H.listE $
-                map (H.app (H.app (H.function "fmap") (H.function "toJSON"))
-                    . H.qvar spliceModName) names
-            ]
-    return mainMod
+    names          = mkSpliceNames $ Seq.length exprs
+    mainMod        = addMainExpr . addMainImports $ mainModBase
+    addMainExpr    = tmap (++ mainModDecls)
+    addMainImports = tmap (++ mainImports opts)
+    mainModDecls   =
+        [ H.nameBind noLoc (H.name "mainRun") $ mainRun opts
+        , H.nameBind noLoc (H.name "splices") $ H.listE $
+            map (H.app (H.app (H.function "fmap") (H.function "toJSON"))
+                . H.qvar spliceModName) names
+        ]
 
 withOutputDir :: Options -> (FilePath -> IO a) -> IO a
 withOutputDir opts act =
@@ -178,7 +164,7 @@ checkProcess
     => FilePath         -- ^ Command to run
     -> [String]         -- ^ Arguments
     -> BL.ByteString    -- ^ Standard input
-    -> m BL.ByteString -- ^ Standard output
+    -> m BL.ByteString  -- ^ Standard output
 checkProcess com args stdin = do
     (exitCode, stdout, stderr) <- liftIO $
         readProcessWithExitCode com args stdin
@@ -195,9 +181,10 @@ runSplice
     -> IO (Either Error a)
 runSplice opts arg spl@(Splice _ loader) 
     = withOutputDir opts $ \outDir -> runErrorT $ do
-        spliceMod <- fromEither $ mkSpliceMod opts spl
-        mainMod   <- fromEither $ mkMainMod opts spl
-        let storeMod path m = liftIO $ 
+        let 
+            spliceMod = mkSpliceMod opts spl
+            mainMod   = mkMainMod opts spl
+            storeMod path m = liftIO $ 
                 IO.withFile path IO.WriteMode $ \h ->
                     IO.hPutStrLn h $ H.prettyPrint m
             spliceModPath = combine outDir "HLitSpliceMod.hs"
@@ -215,18 +202,10 @@ runSplice opts arg spl@(Splice _ loader)
             Right x -> return (x :: [Aeson.Value])
         fromEither $ State.evalStateT loader splices
 
-tests :: Test
-tests = testGroup "Splice"
-    [ testCase "basic_splice" case_basic_splice
-    ]
-
-case_basic_splice :: HU.Assertion
-case_basic_splice = do
-    let typ = H.TyApp (t "IO") (t "Int")
-        t = H.TyCon . H.UnQual . H.name
-    r <- runSplice def{outputDir=Just "splices"} () $ 
-        (+) <$> pure (2 :: Int) <*> splice (Expr typ "return $ 1 + 2")
-    v <- case r of 
-        Left x -> error $ show x
-        Right x -> return x
-    v HU.@?= 5
+-- | Parse a string to an expression. If there is a parse error,
+--   then the returned expression is a call to `fail`.
+deferParse :: String -> H.Exp
+deferParse s = case H.parse s of
+    H.ParseOk x -> x
+    H.ParseFailed _ r -> H.app (H.function "fail") $ 
+        H.strE $ "Parse error: " ++ r

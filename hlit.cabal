@@ -74,12 +74,7 @@ executable hlit
     process,
     process-extras,
     temporary,
-    transformers,
-    -- Needed just for testing
-    HUnit,
-    test-framework,
-    test-framework-hunit,
-    test-framework-quickcheck2
+    transformers
   hs-source-dirs:      hlit
   default-language:    Haskell2010
   ghc-options:         -Wall -fno-warn-unused-do-bind

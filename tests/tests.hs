@@ -1,6 +1,6 @@
 module Main where
 
-import qualified Lit.Splice           as Splice
+import qualified Lit.Tests.Splice     as Splice
 import           Test.Framework       (defaultMain)
 import qualified Text.Lit.RenderFloat as RenderFloat
 
