@@ -14,10 +14,8 @@ import           Data.Lens.Common
 import           Data.Lens.Template
 import           Data.Maybe                     (fromMaybe)
 import qualified Language.Haskell.Exts          as H
-import           Language.Haskell.Exts.SrcLoc   (noLoc)
-import           Lit.Extract                    (Extraction (..), extract)
+import qualified Lit.MkDoc                      as MkDoc
 import qualified Lit.Splice                     as Splice
-import           Lit.Splice                     (Splice)
 import           System.Console.GetOpt          (ArgDescr (..), OptDescr (..))
 import qualified System.Console.GetOpt          as GetOpt
 import           System.Environment             (getArgs)
@@ -122,42 +120,22 @@ writeDoc args doc = do
     output <- callProcess (pandocExe args) args' $ Aeson.encode doc
     hPut IO.stdout output
 
-runSplice :: Arguments -> H.Module -> Splice Pandoc -> IO Pandoc
-runSplice args inputModule spl = do
-    let qualImport x = H.ImportDecl noLoc
-            (H.ModuleName x)
-            True    -- ^ Qualified
-            False   -- ^ With SOURCE pragma?
-            Nothing -- ^ Package name
-            Nothing -- ^ As ...
-            Nothing -- ^ Import specs
-        opt :: Splice.Options
-        opt = def
-            { Splice.inputFilePath = Just $ inputFile args
-            , Splice.inputContent  = inputModule
-            , Splice.spliceImports =
-                [ qualImport "Text.Lit.Render"
-                , qualImport "Data.Foldable"
-                , qualImport "Text.Pandoc.Builder"
-                ]
-            , Splice.mainImports   = [qualImport "Text.Lit.Report"]
-            , Splice.mainRun       = mainRunExpr
-            , Splice.outputDir     = Nothing
-            , Splice.ghcOptions    = ghcOptions args
-            }
-        H.ParseOk mainRunExpr = H.parse "\\() -> Text.Lit.Report.runReport"
-    Splice.runSplice opt () spl >>= \r -> case r of
-        Right x -> return x
-        Left err -> print err >> fail "Conversion failed."
-
 run :: Arguments -> IO ()
 run args = do
     doc <- readDoc args
-    let Extraction code spl = extract doc
+    let code = MkDoc.extractCode doc
     inputModule <- case H.parse code of
         H.ParseOk x -> return x
         failure -> fail $ show failure
-    doc' <- runSplice args inputModule spl
+    let splice = MkDoc.extractSplice doc
+        opt = MkDoc.docSpliceOptions
+            { Splice.inputFilePath = Just $ inputFile args
+            , Splice.inputContent  = inputModule
+            , Splice.ghcOptions    = ghcOptions args
+            }
+    doc' <- Splice.runSplice opt () splice >>= \r -> case r of
+        Right x -> return x
+        Left err -> print err >> fail "Conversion failed."
     writeDoc args doc'
 
 main :: IO ()
