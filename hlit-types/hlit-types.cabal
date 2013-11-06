@@ -1,4 +1,4 @@
-name:                hlit
+name:                hlit-types
 -- PVP summary:      +-+------- breaking API changes
 --                   | | +----- non-breaking API additions
 --                   | | | +--- code changes with no API change
@@ -11,7 +11,7 @@ synopsis:
 -- description:         
 
 license:             BSD3
-license-file:        LICENSE
+license-file:        ../LICENSE
 author:              Anders Jellinggaard
 maintainer:          anders.jel@gmail.com
 category:            Text
@@ -49,59 +49,15 @@ library
     Build-depends:
       test-framework,
       test-framework-quickcheck2,
-      test-framework-hunit,
-      QuickCheck,
-      HUnit
-
-executable hlit
-  main-is:             hlit.hs
-  build-depends:
-    hlit,
-    base >=4.6 && <4.7,
-    aeson,
-    bytestring,
-    containers,
-    data-default,
-    data-lens,
-    data-lens-template,
-    filepath,
-    haskell-src-exts,
-    mtl,
-    pandoc-types,
-    process,
-    process-extras,
-    temporary,
-    transformers
-  hs-source-dirs:      hlit
-  default-language:    Haskell2010
-  ghc-options:         -Wall -fno-warn-unused-do-bind
+      QuickCheck
 
 test-suite tests
   type:             exitcode-stdio-1.0
-  hs-source-dirs:   tests, hlit
+  hs-source-dirs:   tests
   default-language: Haskell2010
   ghc-options:      -Wall -fno-warn-unused-do-bind
   main-is:          tests.hs
   build-depends:
-    -- Copied from hlit executable
-    hlit,
+    hlit-types,
     base >=4.6 && <4.7,
-    aeson,
-    bytestring,
-    containers,
-    data-default,
-    data-lens,
-    data-lens-template,
-    filepath,
-    haskell-src-exts,
-    mtl,
-    pandoc-types,
-    process,
-    process-extras,
-    temporary,
-    transformers,
-    -- Needed just for testing
-    HUnit,
-    test-framework,
-    test-framework-hunit,
-    test-framework-quickcheck2
+    test-framework

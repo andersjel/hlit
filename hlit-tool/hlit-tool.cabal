@@ -1,0 +1,75 @@
+name:                hlit-tool
+-- PVP summary:      +-+------- breaking API changes
+--                   | | +----- non-breaking API additions
+--                   | | | +--- code changes with no API change
+version:             0.1.0.0
+synopsis:
+  Evaluate inline expressions in pandoc supported formats.
+  Rich, extendable pretty printing.
+
+-- A longer description of the package.
+-- description:         
+
+license:             BSD3
+license-file:        ../LICENSE
+author:              Anders Jellinggaard
+maintainer:          anders.jel@gmail.com
+category:            Text
+build-type:          Simple
+
+-- Extra files to be distributed with the package, such as examples or a 
+-- README.
+-- extra-source-files:  
+
+cabal-version:       >=1.10
+
+library
+  build-depends:
+    hlit-types,
+    base >=4.6 && <4.7,
+    aeson,
+    bytestring,
+    containers,
+    data-default,
+    data-lens,
+    data-lens-template,
+    filepath,
+    haskell-src-exts,
+    mtl,
+    pandoc-types,
+    process,
+    process-extras,
+    temporary,
+    transformers
+  exposed-modules:
+    Lit
+    Lit.MkDoc
+    Lit.Extract
+    Lit.Splice
+  hs-source-dirs:      src
+  default-language:    Haskell2010
+  ghc-options:         -Wall -fno-warn-unused-do-bind
+
+executable hlit
+  main-is:             hlit.hs
+  build-depends:
+    hlit-tool,
+    base >=4.6 && <4.7
+  hs-source-dirs:      hlit
+  default-language:    Haskell2010
+  ghc-options:         -Wall -fno-warn-unused-do-bind
+
+test-suite tests
+  type:             exitcode-stdio-1.0
+  hs-source-dirs:   tests
+  default-language: Haskell2010
+  ghc-options:      -Wall -fno-warn-unused-do-bind
+  main-is:          tests.hs
+  build-depends:
+    hlit-tool,
+    base >=4.6 && <4.7,
+    data-default,
+    haskell-src-exts,
+    HUnit,
+    test-framework,
+    test-framework-hunit

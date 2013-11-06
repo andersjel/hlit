@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell   #-}
 
-module Main where
+module Lit where
 
 import           Control.Applicative
 import           Control.Monad                  (unless)
@@ -77,16 +77,21 @@ options =
 
 getArguments :: IO Arguments
 getArguments = do
-    (flags, args, errors) <- GetOpt.getOpt GetOpt.Permute options <$> getArgs
     let header = "usage: hlit [OPTIONS] (INPUT-FILE or -)"
         info = GetOpt.usageInfo header options
         bail = putStrLn info >> exitFailure
-    unless (null errors) $ do
-        for_ errors putStrLn
-        bail
+    args <- parseArguments <$> getArgs
     case args of
-        [inputFile'] -> return $ foldl (flip id) def{inputFile = inputFile'} flags
-        _ -> bail
+        Right x -> return x
+        Left errors -> for_ errors putStrLn >> bail
+
+parseArguments :: [String] -> Either [String] Arguments 
+parseArguments args = do
+    let (flags, args', errors) = GetOpt.getOpt GetOpt.Permute options args
+    unless (null errors) $ Left errors
+    case args' of
+        [inputFile'] -> Right $ foldl (flip id) def{inputFile = inputFile'} flags
+        _ -> Left ["Missing argument: INPUT-FILE"]
 
 callProcess :: FilePath -> [String] -> ByteString -> IO ByteString
 callProcess exe args stdin = do
@@ -137,6 +142,3 @@ run args = do
         Right x -> return x
         Left err -> print err >> fail "Conversion failed."
     writeDoc args doc'
-
-main :: IO ()
-main = run =<< getArguments
