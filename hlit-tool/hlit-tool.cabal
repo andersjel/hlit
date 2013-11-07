@@ -44,7 +44,7 @@ library
   exposed-modules:
     Lit
     Lit.MkDoc
-    Lit.Extract
+    Lit.Walk
     Lit.Splice
   hs-source-dirs:      src
   default-language:    Haskell2010

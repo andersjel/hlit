@@ -9,7 +9,7 @@ import           Data.Char                    (isSpace)
 import           Data.Default
 import qualified Language.Haskell.Exts        as H
 import           Language.Haskell.Exts.SrcLoc
-import           Lit.Extract
+import           Lit.Walk
 import           Lit.Splice                   (Splice, splice)
 import qualified Lit.Splice                   as Splice
 import qualified Text.Pandoc.Builder          as P
@@ -34,27 +34,32 @@ blockExpr, inlineExpr :: String -> H.Exp
 blockExpr  = renderExpr "renderBlock"
 inlineExpr = renderExpr "render"
 
-spliceBlock :: P.Block -> Splice [P.Block]
-spliceBlock ~r@(P.CodeBlock (_, classes, _) str) = case () of
-    _ | "splice" `elem` classes -> f str
-    _ | "do"     `elem` classes -> f $ "do\n" ++ str
-    _ -> pure $ if "hidden" `elem` classes then [] else [r]
-  where f s = splice blockType (blockExpr s)
+spliceBlock :: P.Block -> Maybe (Splice [P.Block])
+spliceBlock r@(P.CodeBlock (_, classes, _) str) = Just $ 
+    case () of
+        _ | "splice" `elem` classes -> f str
+        _ | "do"     `elem` classes -> f $ "do\n" ++ str
+        _ -> pure $ if "hidden" `elem` classes then [] else [r]
+  where f s = splice blockType $ blockExpr s
+spliceBlock _ = Nothing
 
-spliceInline :: P.Inline -> Splice [P.Inline]
-spliceInline ~r@(P.Code _ str) =
+spliceInline :: P.Inline -> Maybe (Splice [P.Inline])
+spliceInline r@(P.Code _ str) = Just $
     case dropWhile isSpace str of
         '@' : expr -> splice inlineType $ inlineExpr expr
         _ -> pure [r]
+spliceInline _ = Nothing
 
 extractSplice :: P.Pandoc -> Splice P.Pandoc
-extractSplice = extract $ Extract spliceInline spliceBlock
+extractSplice = walk spliceInline spliceBlock
 
 extractCode :: P.Pandoc -> String
-extractCode = getConst . extract (Extract (const $ Const "") f)
-  where f ~(P.CodeBlock (_, classes, _) str) =
-          if "haskell" `elem` classes && "ignore" `notElem` classes
-            then Const $ str ++ "\n" else pure []
+extractCode = getConst . walk (const Nothing) f
+  where 
+    f (P.CodeBlock (_, classes, _) str) = Just $
+        if "haskell" `elem` classes && "ignore" `notElem` classes
+          then Const $ str ++ "\n" else pure []
+    f _ = Nothing
 
 qualifiedImport :: String -> H.ImportDecl
 qualifiedImport x = H.ImportDecl noLoc
