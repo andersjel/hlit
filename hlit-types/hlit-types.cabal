@@ -31,12 +31,14 @@ flag tests
 library
   build-depends:
     base >=4.6 && <4.7,
-    pandoc-types,
-    transformers,
+    aeson,
+    containers,
     data-default,
     data-lens,
-    containers,
-    split
+    filepath,
+    pandoc-types,
+    split,
+    transformers
   exposed-modules:
     Text.Lit.Render
     Text.Lit.Report

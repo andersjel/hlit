@@ -22,6 +22,7 @@ import           System.Environment             (getArgs)
 import           System.Exit                    (ExitCode (..), exitFailure)
 import qualified System.IO                      as IO
 import           System.Process.ByteString.Lazy (readProcessWithExitCode)
+import qualified Text.Lit.Report                as Report
 import           Text.Pandoc.Builder            (Pandoc)
 
 data Arguments = Arguments
@@ -85,7 +86,7 @@ getArguments = do
         Right x -> return x
         Left errors -> for_ errors putStrLn >> bail
 
-parseArguments :: [String] -> Either [String] Arguments 
+parseArguments :: [String] -> Either [String] Arguments
 parseArguments args = do
     let (flags, args', errors) = GetOpt.getOpt GetOpt.Permute options args
     unless (null errors) $ Left errors
@@ -138,7 +139,8 @@ run args = do
             , Splice.inputContent  = inputModule
             , Splice.ghcOptions    = ghcOptions args
             }
-    doc' <- Splice.runSplice opt () splice >>= \r -> case r of
+        ropt = Report.Options Nothing
+    doc' <- Splice.runSplice opt ropt splice >>= \r -> case r of
         Right x -> return x
         Left err -> print err >> fail "Conversion failed."
     writeDoc args doc'

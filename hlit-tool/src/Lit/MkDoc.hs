@@ -79,6 +79,6 @@ docSpliceOptions = def
         ]
     , Splice.mainImports   = [qualifiedImport "Text.Lit.Report"]
     , Splice.mainRun       =
-        sureParse "\\() -> Text.Lit.Report.runReport"
+        sureParse "Text.Lit.Report.runReport"
     , Splice.outputDir     = Nothing
     }
