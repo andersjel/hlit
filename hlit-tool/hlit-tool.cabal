@@ -3,9 +3,7 @@ name:                hlit-tool
 --                   | | +----- non-breaking API additions
 --                   | | | +--- code changes with no API change
 version:             0.1.0.0
-synopsis:
-  Evaluate inline expressions in pandoc supported formats.
-  Rich, extendable pretty printing.
+synopsis:            Tool used to run hlit documents
 
 -- A longer description of the package.
 -- description:         

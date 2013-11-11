@@ -5,7 +5,7 @@
 module Text.Lit.RenderFloat
     ( renderFloat
     , FloatStyle (..)
-    , FloatContext (..)
+    , FloatContext
     , significantFigures
     , largeFloatLimit
     , smallFloatLimit
@@ -40,7 +40,7 @@ data FloatContext = FloatContext
     , small   :: !Int
     , style   :: !FloatStyle
     }
-  deriving (Show, Typeable)
+  deriving (Typeable)
 
 instance Config FloatContext
 
@@ -68,11 +68,11 @@ instance Default FloatContext where
         , style = Fuzzy
         }
 
--- | FloatD is a number of the form +/- 0.xxx*10^y
+-- FloatD is a number of the form +/- 0.xxx*10^y
 data FloatD = FloatD
-    Bool  -- ^ True if this number is negative
-    [Int] -- ^ The digits of the number
-    Int   -- ^ The exponent
+    Bool  -- True if this number is negative
+    [Int] -- The digits of the number
+    Int   -- The exponent
 
 -- | A thin wrapper around Numeric.floatToDigits
 toFloatD :: RealFloat a => a -> FloatD
@@ -95,11 +95,11 @@ roundD sig (FloatD neg digits expon) =
         else FloatD neg roundedUp expon'
 
 data FloatPres = FloatPres
-    Bool  -- ^ has minus sign
-    [Int] -- ^ digits before decimal point
-    Bool  -- ^ show decimal point
-    [Int] -- ^ digits after decimal point
-    Int   -- ^ exponent
+    Bool  -- has minus sign
+    [Int] -- digits before decimal point
+    Bool  -- show decimal point
+    [Int] -- digits after decimal point
+    Int   -- exponent
   deriving Show
 
 toExp :: FloatD -> FloatPres

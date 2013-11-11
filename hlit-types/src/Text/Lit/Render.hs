@@ -3,10 +3,8 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module Text.Lit.Render
-    ( Render
-    , render
-    , RenderBlock
-    , renderBlock
+    ( Render (..)
+    , RenderBlock (..)
     ) where
 
 import           Control.Applicative
@@ -16,8 +14,22 @@ import           Text.Lit.RenderFloat   (renderFloat)
 import           Text.Lit.Report
 import qualified Text.Pandoc.Builder    as Pandoc
 
+-- | Instances of this typeclass can occur inline in @hlit@ documents.
+-- For instance, in the document
+--
+-- > Pi is equal to: `@ pi :: Float`.
+-- 
+-- the `render` method would be called to convert @pi@ to pandoc `Pandoc.Inlines`.
 class Render a where
+    
+    -- | Convert to pandoc types within the `Report` monad. See "Text.Pandoc.Builder"
+    -- if you need to write instances.
     render :: a -> Report Pandoc.Inlines
+    
+    -- | Special case for lists. This makes it possible to render a 
+    -- `String` different from other lists. Compare `Text.Show.showList` 
+    -- from "base". The default implementation in terms of `render` should
+    -- normally suffice.
     renderAsList :: [a] -> Report Pandoc.Inlines
     renderAsList xs = pure "[" <=> f xs <=> pure "]"
       where f []  = pure mempty
