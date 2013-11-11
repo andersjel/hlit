@@ -32,9 +32,11 @@ library
   build-depends:
     base >=4.6 && <4.7,
     aeson,
+    bytestring,
     containers,
     data-default,
     data-lens,
+    directory,
     filepath,
     pandoc-types,
     split,

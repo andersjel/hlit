@@ -4,7 +4,7 @@
 module Lit where
 
 import           Control.Applicative
-import           Control.Monad                  (unless)
+import           Control.Monad                  (unless, when)
 import qualified Data.Aeson                     as Aeson
 import           Data.ByteString.Lazy           (ByteString, hPut)
 import           Data.Char                      (toUpper)
@@ -12,7 +12,7 @@ import           Data.Default
 import           Data.Foldable                  (for_)
 import           Data.Lens.Common
 import           Data.Lens.Template
-import           Data.Maybe                     (fromMaybe)
+import           Data.Maybe                     (fromMaybe, isJust)
 import qualified Language.Haskell.Exts          as H
 import qualified Lit.MkDoc                      as MkDoc
 import qualified Lit.Splice                     as Splice
@@ -20,6 +20,7 @@ import           System.Console.GetOpt          (ArgDescr (..), OptDescr (..))
 import qualified System.Console.GetOpt          as GetOpt
 import           System.Environment             (getArgs)
 import           System.Exit                    (ExitCode (..), exitFailure)
+import           System.FilePath                (replaceFileName)
 import qualified System.IO                      as IO
 import           System.Process.ByteString.Lazy (readProcessWithExitCode)
 import qualified Text.Lit.Report                as Report
@@ -31,6 +32,7 @@ data Arguments = Arguments
     , inputFormat   :: Maybe String
     , outputFile    :: Maybe FilePath
     , outputFormat  :: Maybe String
+    , outputFolder  :: Maybe String
     , pandocExe     :: FilePath
     , pandocOptions :: [String]
     }
@@ -44,6 +46,7 @@ instance Default Arguments where
         , inputFormat = def
         , outputFile = def
         , outputFormat = def
+        , outputFolder = def
         , pandocExe = "pandoc"
         , pandocOptions = def
         }
@@ -73,7 +76,10 @@ options =
         "Output format (forwarded to pandoc)"
     , Option "o" ["output"]
         (ReqArg (setL lOutputFile . Just) "FILE")
-        "Output file (or - for stdout)"
+        "Output file (omit for stdout)"
+    , Option "" ["output-folder"]
+        (ReqArg (setL lOutputFolder . Just) "FOLDER-NAME")
+        "Name of a folder for images and such (only letters from a-z)"
     ]
 
 getArguments :: IO Arguments
@@ -89,9 +95,15 @@ getArguments = do
 parseArguments :: [String] -> Either [String] Arguments
 parseArguments args = do
     let (flags, args', errors) = GetOpt.getOpt GetOpt.Permute options args
+        arguments = foldl (flip id) def flags
     unless (null errors) $ Left errors
+    when (isJust $ outputFolder arguments) $
+        unless (isJust $ outputFile arguments) $
+            Left ["stdout cannot be used for output when "
+                ++ "an output folder is specified (use -o FILE or "
+                ++ "omit --output-folder FOLDER-NAME)"]
     case args' of
-        [inputFile'] -> Right $ foldl (flip id) def{inputFile = inputFile'} flags
+        [inputFile'] -> Right arguments{inputFile=inputFile'}
         _ -> Left ["Missing argument: INPUT-FILE"]
 
 callProcess :: FilePath -> [String] -> ByteString -> IO ByteString
@@ -134,13 +146,18 @@ run args = do
         H.ParseOk x -> return x
         failure -> fail $ show failure
     let splice = MkDoc.extractSplice doc
-        opt = MkDoc.docSpliceOptions
+        sopt = MkDoc.docSpliceOptions
             { Splice.inputFilePath = Just $ inputFile args
             , Splice.inputContent  = inputModule
             , Splice.ghcOptions    = ghcOptions args
             }
-        ropt = Report.Options Nothing
-    doc' <- Splice.runSplice opt ropt splice >>= \r -> case r of
+        ropt = Report.Options 
+            $ mkOutputOptions 
+                <$> outputFile args 
+                <*> outputFolder args
+        mkOutputOptions p n = 
+            Report.OutputOptions (replaceFileName p n) (n ++ "/")
+    doc' <- Splice.runSplice sopt ropt splice >>= \r -> case r of
         Right x -> return x
         Left err -> print err >> fail "Conversion failed."
     writeDoc args doc'
