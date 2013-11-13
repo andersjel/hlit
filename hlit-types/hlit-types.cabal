@@ -8,7 +8,7 @@ synopsis:            Types used in hlit documents
 -- A longer description of the package.
 -- description:         
 
-license:             BSD3
+license:             GPL-3
 license-file:        ../LICENSE
 author:              Anders Jellinggaard
 maintainer:          anders.jel@gmail.com
