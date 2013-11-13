@@ -2,6 +2,10 @@
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
+-- | This module contains typeclasses used to convert haskell values to
+-- `Pandoc.Inlines` and `Pandoc.Blocks` (from "pandoc-types"). The conversion
+-- is done in the `Report` monad which gives access to user configuration and
+-- file output (for images). See "Text.Lit.Report".
 module Text.Lit.Render
     ( Render (..)
     , RenderBlock (..)
@@ -14,22 +18,23 @@ import           Text.Lit.RenderFloat   (renderFloat)
 import           Text.Lit.Report
 import qualified Text.Pandoc.Builder    as Pandoc
 
--- | Instances of this typeclass can occur inline in @hlit@ documents.
--- For instance, in the document
+-- | Instances of this typeclass can occur inline in @hlit@ documents. For
+-- instance, in the document
 --
 -- > Pi is equal to: `@ pi :: Double`.
 -- 
--- the `render` method would be called to convert @pi@ to pandoc `Pandoc.Inlines`.
+-- the `render` method would be called to convert @pi@ to pandoc
+-- `Pandoc.Inlines`.
 class Render a where
     
-    -- | Convert to pandoc types within the `Report` monad. See "Text.Pandoc.Builder"
-    -- if you need to write instances.
+    -- | Convert to pandoc types within the `Report` monad. See
+    -- "Text.Pandoc.Builder" if you need to write instances.
     render :: a -> Report Pandoc.Inlines
     
-    -- | Special case for lists. This makes it possible to render a 
-    -- `String` differently from other lists. Compare `Text.Show.showList` 
-    -- from "base". The default implementation in terms of `render` should
-    -- normally suffice.
+    -- | Special case for lists. This makes it possible to render a `String`
+    -- differently from other lists. Compare `Text.Show.showList` from "base".
+    -- The default implementation in terms of `render` should normally
+    -- suffice.
     renderAsList :: [a] -> Report Pandoc.Inlines
     renderAsList xs = pure "[" <=> f xs <=> pure "]"
       where f []  = pure mempty
@@ -37,8 +42,8 @@ class Render a where
             f (x:xs') = render x <=> pure ", " <=> f xs'
             (<=>) = liftA2 (<>)
 
--- | Instances of this typeclass can be used in an @hlit@ document
--- where a `Pandoc.Block` would be allowed in a "pandoc" document.
+-- | Instances of this typeclass can be used in an @hlit@ document where a
+-- `Pandoc.Block` would be allowed in a "pandoc" document.
 class RenderBlock a where
     renderBlock :: a -> Report Pandoc.Blocks
 
@@ -57,9 +62,9 @@ instance Render Pandoc.Inline where
 instance Render a => Render (IO a) where
     render x = render =<< liftIO x
 
--- | Usually, a list is rendered as [1, 2, 3], with an exception for
--- [`Char`] (aka a `String`) which is rendered as normal pandoc text.
--- See `renderAsList`.
+-- | Usually, a list is rendered as [1, 2, 3], with an exception for [`Char`]
+-- (aka a `String`) which is rendered as normal pandoc text. See
+-- `renderAsList`.
 instance Render a => Render [a] where
     render = renderAsList
 
@@ -80,22 +85,22 @@ instance Render Integer where
 instance Render Bool where
     render = render . show
 
--- | Uses `renderFloat`.
+-- | Uses `renderFloat` for pretty printing.
 instance Render Float where
     render = renderFloat
 
--- | Uses `renderFloat`.
+-- | Uses `renderFloat` for pretty printing.
 instance Render Double where
     render = renderFloat
 
--- | Unlike `show`, @Just x@ renders as @x@ (i.e. the \"Just\" part
--- is dropped). @Nothing@ renders as @Pandoc.emph \"Nothing\"@.
+-- | Unlike `show`, @Just x@ renders as @x@ (i.e. the \"Just\" part is
+-- dropped). @Nothing@ renders as @Pandoc.emph \"Nothing\"@.
 instance Render a => Render (Maybe a) where
     render (Just x) = render x
     render Nothing = return $ Pandoc.emph "Nothing"
 
--- | `Right` @x@ is rendered as @x@. `Left` @x@ is rendered
--- as @x@ with emphasis.
+-- | `Right` @x@ is rendered as @x@. `Left` @x@ is rendered as @x@ with
+-- emphasis.
 instance (Render a, Render b) => Render (Either a b) where
     render (Right x) = render x
     render (Left x) = Pandoc.emph <$> render x

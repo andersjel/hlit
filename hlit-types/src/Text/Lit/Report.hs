@@ -1,18 +1,23 @@
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module Text.Lit.Report
-    ( Report
+module Text.Lit.Report ( 
+    -- * The `Report` monad
+    Report
+    -- ** Extendable configuration
+    , Config
+    , getC
+    , setC
+    -- *** Lens based access
+    , get
+    , ($=)
+    -- ** Limited IO in the `Report` monad
+    , reserveOutputPath
+    , saveOutputFile
+    -- ** Running a `Report`
     , Options (..)
     , OutputOptions (..)
     , runReport
-    , reserveOutputPath
-    , saveOutputFile
-    , Config
-    , getC
-    , get
-    , setC
-    , ($=)
     ) where
 
 import           Control.Applicative
