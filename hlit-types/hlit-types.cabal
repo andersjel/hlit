@@ -33,7 +33,6 @@ library
     bytestring,
     containers,
     data-default,
-    data-lens,
     directory,
     filepath,
     pandoc-types,

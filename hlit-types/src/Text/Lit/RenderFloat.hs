@@ -6,6 +6,7 @@ module Text.Lit.RenderFloat
     ( renderFloat
     , FloatStyle (..)
     , FloatContext
+    , floatContext
     , significantFigures
     , largeFloatLimit
     , smallFloatLimit
@@ -21,7 +22,7 @@ import           Data.Default
 import           Data.List.Split                      (chunksOf)
 import           Data.Typeable                        (Typeable)
 import qualified Numeric
-import           Text.Lit.Report                      (Report, mkSingletonVar, narrowVar, get)
+import           Text.Lit.Report                      (Report, ConfigVar, singleton, refine, get)
 import qualified Text.Pandoc.Builder                  as Pandoc
 
 #ifdef COMPILE_TESTS
@@ -41,19 +42,20 @@ data FloatContext = FloatContext
     }
   deriving (Typeable)
 
-instance Config FloatContext
+floatContext :: ConfigVar FloatContext
+floatContext = singleton
 
-significantFigures :: Lens FloatContext Int
-significantFigures = lens sigFigs (\x c -> c{sigFigs=x})
+significantFigures :: ConfigVar Int
+significantFigures = refine floatContext sigFigs (\x c -> c{sigFigs=x})
 
-largeFloatLimit :: Lens FloatContext Int
-largeFloatLimit = lens large (\x c -> c{large=x})
+largeFloatLimit :: ConfigVar Int
+largeFloatLimit = refine floatContext large (\x c -> c{large=x})
 
-smallFloatLimit :: Lens FloatContext Int
-smallFloatLimit = lens small (\x c -> c{small=x})
+smallFloatLimit :: ConfigVar Int
+smallFloatLimit = refine floatContext small (\x c -> c{small=x})
 
-floatStyle :: Lens FloatContext FloatStyle
-floatStyle = lens style (\x c -> c{style=x})
+floatStyle :: ConfigVar FloatStyle
+floatStyle = refine floatContext style (\x c -> c{style=x})
 
 isFuzzy :: FloatContext -> Bool
 isFuzzy FloatContext{style=Fuzzy} = True
@@ -174,7 +176,7 @@ renderFloatC context num =
     in  Pandoc.math $ sign ++ pre' ++ point' ++ post' ++ expon'
 
 renderFloat :: RealFloat a => a -> Report Pandoc.Inlines
-renderFloat num = renderFloatC <$> getC <*> pure num
+renderFloat num = renderFloatC <$> get floatContext <*> pure num
 
 #ifdef COMPILE_TESTS
 

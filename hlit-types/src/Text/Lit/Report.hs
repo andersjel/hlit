@@ -6,10 +6,10 @@ module Text.Lit.Report (
     Report
     -- ** Extendable configuration
     , ConfigVar
-    , mkConfigVar
-    , mkGetSetVar
-    , mkSingletonVar
-    , narrowVar
+    , fromTag
+    , fromGetSet
+    , singleton
+    , refine
     , get
     , set
     , ($=)
@@ -135,11 +135,11 @@ saveOutputFile pre ext content = do
 data ConfigVar a 
     = GetSetVar (Report a) (a -> Report ())
 
-mkGetSetVar :: (Report a) -> (a -> Report ()) -> ConfigVar a
-mkGetSetVar = GetSetVar
+fromGetSet :: (Report a) -> (a -> Report ()) -> ConfigVar a
+fromGetSet = GetSetVar
 
-mkConfigVar :: (Typeable a, Typeable tag) => tag -> a -> ConfigVar a
-mkConfigVar tag d = GetSetVar getter setter
+fromTag :: (Typeable a, Typeable tag) => tag -> a -> ConfigVar a
+fromTag tag d = GetSetVar getter setter
   where
     t = (typeOf tag, typeOf d)
     getter = do
@@ -153,16 +153,16 @@ mkConfigVar tag d = GetSetVar getter setter
             ext' = Map.insert t v ext
         Report $ State.put state{extensions = ext'}
 
-mkSingletonVar :: (Typeable a, Default a) -> ConfigVar a
-mkSingletonVar = mkConfigVar def def
+singleton :: (Typeable a, Default a) => ConfigVar a
+singleton = fromTag d d where d = def
 
-narrowVar :: ConfigVar a -> (a -> b) -> (a -> b -> a) -> ConfigVar b
-narrowVar v g s = mkGetSetVar getter setter
+refine :: ConfigVar a -> (a -> b) -> (b -> a -> a) -> ConfigVar b
+refine v g s = fromGetSet getter setter
   where
     getter = g <$> get v
     setter n = do
         x <- get v
-        v $= s x n
+        v $= s n x
 
 get :: ConfigVar a -> Report a
 get (GetSetVar getter _) = getter
