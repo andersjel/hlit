@@ -18,11 +18,10 @@ module Text.Lit.RenderFloat
 
 import           Control.Applicative
 import           Data.Default
-import           Data.Lens.Common                     (Lens, lens)
 import           Data.List.Split                      (chunksOf)
 import           Data.Typeable                        (Typeable)
 import qualified Numeric
-import           Text.Lit.Report                      (Config, Report, getC)
+import           Text.Lit.Report                      (Report, mkSingletonVar, narrowVar, get)
 import qualified Text.Pandoc.Builder                  as Pandoc
 
 #ifdef COMPILE_TESTS

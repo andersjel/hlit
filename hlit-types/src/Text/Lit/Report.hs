@@ -5,11 +5,13 @@ module Text.Lit.Report (
     -- * The `Report` monad
     Report
     -- ** Extendable configuration
-    , Config
-    , getC
-    , setC
-    -- *** Lens based access
+    , ConfigVar
+    , mkConfigVar
+    , mkGetSetVar
+    , mkSingletonVar
+    , narrowVar
     , get
+    , set
     , ($=)
     -- ** Limited IO in the `Report` monad
     , reserveOutputPath
@@ -33,8 +35,6 @@ import           Data.Char                        (toLower)
 import           Data.Default
 import           Data.Dynamic                     (Dynamic, fromDynamic, toDyn)
 import           Data.Foldable                    (for_)
-import           Data.Lens.Common                 (Lens, getL, lens, mapLens,
-                                                   setL)
 import qualified Data.Map.Strict                  as Map
 import           Data.Maybe                       (fromMaybe)
 import           Data.Typeable                    (TypeRep, Typeable, typeOf)
@@ -62,14 +62,11 @@ instance FromJSON Options
 instance ToJSON Options
 
 data ReportState = ReportState
-    { extensions :: Map.Map TypeRep Dynamic
+    { extensions :: Map.Map (TypeRep, TypeRep) Dynamic
     , options    :: Options
     -- | a counter for each file prefix in the output folder.
     , counters   :: Map.Map String Int
     }
-
-lCounters :: Lens ReportState (Map.Map String Int)
-lCounters = lens counters $ \x y -> y{counters=x}
 
 newtype Report a = Report (StateT ReportState IO a)
   deriving (Monad, Functor, Applicative, MonadIO)
@@ -104,21 +101,23 @@ reserveOutputPath
     -> Report (FilePath, String) -- ^ (path, url)
 reserveOutputPath pre ext = do
     ops <- requireOutputOptions
-    st <- getReportState
+    state <- getReportState
     let ok = (`elem` ['a'..'z']) . toLower
     for_ [pre, ext] $ \s ->
         unless (all ok s && not (null s)) $
             fail "saveOutputFile: invalid prefix or extension requested"
-    let l     = mapLens pre . lCounters
-        c     = fromMaybe 1 $ getL l st
-        name  = pre ++ show c ++ "." ++ ext
+    let counts = counters state
+        count = fromMaybe 1 $ Map.lookup pre counts
+        count' = count + 1
+        name  = pre ++ show count ++ "." ++ ext
         path' = path ops </> name
         url'  = url ops ++ "/" ++ name
+        state' = state{counters=Map.insert pre count' counts}
     alreadyThere <- internalLiftIO $ doesExist path'
     -- TODO: There is a race condition here before the file is
     --       created down the line, but it is hard to avoid.
     when alreadyThere $ fail $ "File already exists: " ++ path'
-    Report $ State.put $ setL l (Just $ c+1) st
+    Report $ State.put state'
     return (path', url')
 
 -- | Save a file in the ouput folder.
@@ -133,27 +132,44 @@ saveOutputFile pre ext content = do
         IO.withBinaryFile path' IO.WriteMode $ \h -> B.hPut h content
     return url'
 
-class (Typeable a, Default a) => Config a
+data ConfigVar a 
+    = GetSetVar (Report a) (a -> Report ())
 
-getC :: Config a => Report a
-getC = do
-    ext <- extensions <$> getReportState
-    let c = Map.lookup (typeOf r) ext
-        r = fromMaybe def (fromDynamic =<< c)
-    return r -- Here, the type of r is fixed to a.
+mkGetSetVar :: (Report a) -> (a -> Report ()) -> ConfigVar a
+mkGetSetVar = GetSetVar
 
-get :: Config a => Lens a b -> Report b
-get l = getL l <$> getC
+mkConfigVar :: (Typeable a, Typeable tag) => tag -> a -> ConfigVar a
+mkConfigVar tag d = GetSetVar getter setter
+  where
+    t = (typeOf tag, typeOf d)
+    getter = do
+        ext <- extensions <$> getReportState
+        let c = Map.lookup t ext
+        return $ fromMaybe d (fromDynamic =<< c)
+    setter x = do
+        state <- getReportState
+        let v = toDyn x
+            ext = extensions state
+            ext' = Map.insert t v ext
+        Report $ State.put state{extensions = ext'}
 
-setC :: Config a => a -> Report ()
-setC x = do
-    state <- getReportState
-    let k = typeOf x
-        v = toDyn x
-        ext = extensions state
-        ext' = Map.insert k v ext
-    Report $ State.put state{extensions = ext'}
+mkSingletonVar :: (Typeable a, Default a) -> ConfigVar a
+mkSingletonVar = mkConfigVar def def
+
+narrowVar :: ConfigVar a -> (a -> b) -> (a -> b -> a) -> ConfigVar b
+narrowVar v g s = mkGetSetVar getter setter
+  where
+    getter = g <$> get v
+    setter n = do
+        x <- get v
+        v $= s x n
+
+get :: ConfigVar a -> Report a
+get (GetSetVar getter _) = getter
+
+set :: ConfigVar a -> a -> Report ()
+set (GetSetVar _ setter) = setter
 
 infixr 4 $=
-($=) :: Config a => Lens a b -> b -> Report ()
-l $= x = x `seq` setC . setL l x =<< getC
+($=) :: ConfigVar a -> a -> Report ()
+v $= x = x `seq` set v x
