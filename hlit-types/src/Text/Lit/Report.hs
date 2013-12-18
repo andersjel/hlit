@@ -109,7 +109,7 @@ getReportState = Report State.get
     Internally the `Report` monad holds a `Data.Set.Set` which
     maps the `Data.Typeable.TypeRef` of a /tag/ type to the current
     value held by the variable. This set starts out empty, and a 
-    default value is returned by `get`. 
+    default value is returned if `get` is called. 
     By using a tag type, instead of something like a string identifier,
     a module can safe-guard against name collision by not exporting the
     tag type.
@@ -117,6 +117,8 @@ getReportState = Report State.get
 data ConfigVar a 
     = GetSetVar (Report a) (a -> Report ())
 
+-- | Create something that mimics an ordinary `ConfigVar` but allows
+--   arbitrary `Report` actions.
 fromGetSet :: (Report a) -> (a -> Report ()) -> ConfigVar a
 fromGetSet = GetSetVar
 
@@ -137,9 +139,21 @@ fromTag tag d = GetSetVar getter setter
             ext' = Map.insert t v ext
         Report $ State.put state{extensions = ext'}
 
+-- | Create a `ConfigVar` for a type that is an instance of `Data.Default`.
+--   The type itself is used as the /tag/ (see `ConfigVar`). There can only
+--   be one singleton per type.
+--   
+--   > data PlotConfig = PlotConfig {lineColor :: Color}
+--   > plotConfig :: ConfigVar PlotConfig
+--   > plotConfig = singleton -- Each Report will hold one PlotConfig
+--   >
+--   > action = do
+--   >     plotConfig $= PlotConfig blue
+--   >     plotGraph
 singleton :: (Typeable a, Default a) => ConfigVar a
 singleton = fromTag d d where d = def
 
+-- | Lens like derivation of `ConfigVar`s.
 refine :: ConfigVar a -> (a -> b) -> (b -> a -> a) -> ConfigVar b
 refine v g s = fromGetSet getter setter
   where
@@ -151,9 +165,11 @@ refine v g s = fromGetSet getter setter
 get :: ConfigVar a -> Report a
 get (GetSetVar getter _) = getter
 
+-- | Strict in the set value.
 set :: ConfigVar a -> a -> Report ()
 set (GetSetVar _ setter) !x = setter x
 
+-- | Strict in the modified value.
 modify :: ConfigVar a -> (a -> a) -> Report ()
 modify v f = set v =<< f <$> get v
 
