@@ -33,8 +33,8 @@ import qualified System.Process                 as Process
 import           System.Process.ByteString.Lazy (readProcessWithExitCode)
 
 data Splice a = Splice
-    (Seq Expr) -- ^ The expressions that need to be compiled
-    (Load a)   -- ^ Monad for loading the result of running each expression
+    (Seq Expr) -- The expressions that need to be compiled
+    (Load a)   -- Monad for loading the result of running each expression
 
 instance Functor Splice where
     fmap f (Splice s a) = Splice s (f <$> a)

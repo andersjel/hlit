@@ -64,11 +64,11 @@ extractCode = getConst . walk (const Nothing) f
 qualifiedImport :: String -> H.ImportDecl
 qualifiedImport x = H.ImportDecl noLoc
     (H.ModuleName x)
-    True    -- ^ Qualified
-    False   -- ^ With SOURCE pragma?
-    Nothing -- ^ Package name
-    Nothing -- ^ As ...
-    Nothing -- ^ Import specs
+    True    -- Qualified
+    False   -- With SOURCE pragma?
+    Nothing -- Package name
+    Nothing -- As ...
+    Nothing -- Import specs
 
 docSpliceOptions :: Splice.Options
 docSpliceOptions = def
