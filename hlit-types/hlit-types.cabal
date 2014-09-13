@@ -28,7 +28,7 @@ flag tests
 
 library
   build-depends:
-    base >=4.6 && <4.7,
+    base >=4.6,
     aeson,
     bytestring,
     containers,
@@ -60,5 +60,5 @@ test-suite tests
   main-is:          tests.hs
   build-depends:
     hlit-types,
-    base >=4.6 && <4.7,
+    base >=4.6,
     test-framework

@@ -24,7 +24,7 @@ cabal-version:       >=1.10
 library
   build-depends:
     hlit-types,
-    base >=4.6 && <4.7,
+    base >=4.6,
     aeson,
     bytestring,
     containers,
@@ -52,7 +52,7 @@ executable hlit
   main-is:             hlit.hs
   build-depends:
     hlit-tool,
-    base >=4.6 && <4.7
+    base >=4.6
   hs-source-dirs:      hlit
   default-language:    Haskell2010
   ghc-options:         -Wall -fno-warn-unused-do-bind
@@ -65,7 +65,7 @@ test-suite tests
   main-is:          tests.hs
   build-depends:
     hlit-tool,
-    base >=4.6 && <4.7,
+    base >=4.6,
     data-default,
     haskell-src-exts,
     HUnit,
