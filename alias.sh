@@ -1,16 +1,16 @@
-# Source this file with bash to use hlit from a cabal sandbox in hlit-tool.
+# Source this file with bash to use hlit from a cabal sandbox.
 
 HLITDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-SANDBOX="$HLITDIR/hlit-tool/.cabal-sandbox"
+HLITBOX="$HLITDIR/.cabal-sandbox"
 
 function hlit () {
-    HLIT="$SANDBOX/bin/hlit"
-    DB=("$SANDBOX"/*.conf.d)
+    HLIT="$HLITBOX/bin/hlit"
+    DB=("$HLITBOX"/*.conf.d)
     "$HLIT" -g -package-db -g "$DB" "$@"
 }
 
 function open-doc () {
-    DOCROOT=("$SANDBOX"/share/doc/*)
+    DOCROOT=("$HLITBOX"/share/doc/*)
     DOC=("$DOCROOT/$1"-*/html/index.html)
     xdg-open "$DOC"
 }

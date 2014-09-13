@@ -1,0 +1,11 @@
+#!/bin/bash
+
+WD="$PWD"
+cd "$( dirname "${BASH_SOURCE[0]}" )"
+cabal sandbox init
+cd hlit-types
+cabal sandbox init --sandbox "../.cabal-sandbox"
+cd ../hlit-tool
+cabal sandbox init --sandbox "../.cabal-sandbox"
+cabal sandbox add-source ../hlit-types
+cd "$WD"
