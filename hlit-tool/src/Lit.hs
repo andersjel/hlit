@@ -19,6 +19,7 @@ import qualified Lit.Splice                     as Splice
 import           System.Console.GetOpt          (ArgDescr (..), OptDescr (..))
 import qualified System.Console.GetOpt          as GetOpt
 import           System.Environment             (getArgs)
+import           System.Directory               (createDirectoryIfMissing)
 import           System.Exit                    (ExitCode (..), exitFailure)
 import           System.FilePath                (replaceFileName)
 import qualified System.IO                      as IO
@@ -35,6 +36,7 @@ data Arguments = Arguments
     , outputFolder  :: Maybe String
     , pandocExe     :: FilePath
     , pandocOptions :: [String]
+    , spliceFolder  :: Maybe FilePath
     }
 
 nameMakeLens ''Arguments $ \(c:cs) -> Just $ 'l' : toUpper c : cs
@@ -49,6 +51,7 @@ instance Default Arguments where
         , outputFolder = def
         , pandocExe = "pandoc"
         , pandocOptions = def
+        , spliceFolder = def
         }
 
 options :: [OptDescr (Arguments -> Arguments)]
@@ -79,7 +82,12 @@ options =
         "Output file (omit for stdout)"
     , Option "" ["output-folder"]
         (ReqArg (setL lOutputFolder . Just) "FOLDER-NAME")
-        "Name of a folder for images and such (only letters from a-z)"
+        "Name of a folder for images and such\n(only letters from a-z)"
+    , Option "" ["splice-folder"]
+        (ReqArg (setL lSpliceFolder . Just) "PATH")
+        ( "Store temporary generated Haskell code and\n"
+        ++ "executeables in this folder (and leave them\n"
+        ++ "there after the program terminates)")
     ]
 
 getArguments :: IO Arguments
@@ -150,6 +158,7 @@ run args = do
             { Splice.inputFilePath = Just $ inputFile args
             , Splice.inputContent  = inputModule
             , Splice.ghcOptions    = ghcOptions args
+            , Splice.outputDir     = spliceFolder args
             }
         ropt = Report.Options 
             $ mkOutputOptions 
@@ -157,6 +166,9 @@ run args = do
                 <*> outputFolder args
         mkOutputOptions p n = 
             Report.OutputOptions (replaceFileName p n) (n ++ "/")
+    -- The False below instructs createDirectoryIfMissing to not create parent
+    -- dirs.
+    for_ (spliceFolder args) $ createDirectoryIfMissing False
     doc' <- Splice.runSplice sopt ropt splice >>= \r -> case r of
         Right x -> return x
         Left err -> print err >> fail "Conversion failed."
