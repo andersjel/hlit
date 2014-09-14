@@ -32,7 +32,7 @@ class Render a where
     render :: a -> Report Pandoc.Inlines
     
     -- | Special case for lists. This makes it possible to render a `String`
-    -- differently from other lists. Compare `Text.Show.showList` from "base".
+    -- differently from other lists. Compare `Text.Show.showList` from @base@.
     -- The default implementation in terms of `render` should normally
     -- suffice.
     renderAsList :: [a] -> Report Pandoc.Inlines

@@ -18,21 +18,19 @@ sureParse :: H.Parseable a => String -> a
 sureParse s = let H.ParseOk t = H.parse s in t
 
 blockType, inlineType :: H.Type
-blockType = sureParse
-    "Text.Lit.Report.Report [Text.Pandoc.Builder.Block]"
-inlineType = sureParse
-    "Text.Lit.Report.Report [Text.Pandoc.Builder.Inline]"
+blockType = sureParse "Text.Lit.Internal.BlockType"
+inlineType = sureParse "Text.Lit.Internal.InlineType"
 
 renderExpr :: String -> String -> H.Exp
 renderExpr func s = case H.parse s of
     H.ParseOk x -> H.app f x
     failure     -> H.app (H.function "fail") (H.strE $ show failure)
   where
-    f = sureParse $ "fmap Data.Foldable.toList . Text.Lit.Render." ++ func
+    f = sureParse $ "Text.Lit.Internal." ++ func
 
 blockExpr, inlineExpr :: String -> H.Exp
-blockExpr  = renderExpr "renderBlock"
-inlineExpr = renderExpr "render"
+blockExpr  = renderExpr "renderBlock_"
+inlineExpr = renderExpr "render_"
 
 spliceBlock :: P.Block -> Maybe (Splice [P.Block])
 spliceBlock r@(P.CodeBlock (_, classes, _) str) = Just $ 
@@ -72,13 +70,8 @@ qualifiedImport x = H.ImportDecl noLoc
 
 docSpliceOptions :: Splice.Options
 docSpliceOptions = def
-    { Splice.spliceImports =
-        [ qualifiedImport "Text.Lit.Render"
-        , qualifiedImport "Data.Foldable"
-        , qualifiedImport "Text.Pandoc.Builder"
-        ]
+    { Splice.spliceImports = [qualifiedImport "Text.Lit.Internal"]
     , Splice.mainImports   = [qualifiedImport "Text.Lit.Report"]
-    , Splice.mainRun       =
-        sureParse "Text.Lit.Report.runReport"
+    , Splice.mainRun       = sureParse "Text.Lit.Report.runReport"
     , Splice.outputDir     = Nothing
     }
