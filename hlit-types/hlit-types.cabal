@@ -12,6 +12,7 @@ license:             GPL-3
 license-file:        ../LICENSE
 author:              Anders Jellinggaard
 maintainer:          anders.jel@gmail.com
+copyright:           Copyright (c) 2014 Anders Jellinggaard
 category:            Text
 build-type:          Simple
 
