@@ -14,3 +14,10 @@ function open-doc () {
     DOC=("$DOCROOT/$1"-*/html/index.html)
     xdg-open "$DOC"
 }
+
+function show-html () {
+    OUTFILE="$(mktemp --suffix .html)"
+    cat > "$OUTFILE"
+    ( "${BROWSER:-xdg-open}" "$@" "$OUTFILE" & disown )
+    ( (sleep 10; rm "$OUTFILE") & disown )
+}
