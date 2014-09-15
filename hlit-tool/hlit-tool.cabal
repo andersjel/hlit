@@ -34,7 +34,7 @@ library
     data-lens-template,
     directory,
     filepath,
-    haskell-src-exts,
+    haskell-src-exts ==1.15.*,
     mtl,
     pandoc-types,
     process,
