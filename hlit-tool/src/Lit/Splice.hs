@@ -160,9 +160,14 @@ withOutputDir opts act =
         Just d -> act d
         Nothing -> withTempDirectory "." "splice." act
 
-checkCall :: (Err.MonadError Error m, MonadIO m) => FilePath -> [String] -> m ()
-checkCall com args = do
-    exitCode <- liftIO $ Process.rawSystem com args
+checkCallSilent
+    :: (Err.MonadError Error m, MonadIO m)
+    => FilePath -> [String] -> m ()
+checkCallSilent com args = do
+    let c = (Process.proc com args)
+        c' = c{Process.std_out=Process.UseHandle IO.stderr}
+    (_, _, _, h) <- liftIO $ Process.createProcess c'
+    exitCode <- liftIO $ Process.waitForProcess h
     case exitCode of
         ExitSuccess   -> return ()
         ExitFailure n -> throwError $ CommandError com args n
@@ -200,10 +205,10 @@ runSplice opts arg spl@(Splice _ loader)
             mainPath = combine outDir "HLitSpliceMain"
         storeMod spliceModPath spliceMod
         storeMod mainModPath mainMod
-        checkCall "ghc" $
+        checkCallSilent "ghc" $
             ghcOptions opts ++
             ["-outputdir", outDir, "-i" ++ outDir, spliceModPath]
-        checkCall "ghc" $
+        checkCallSilent "ghc" $
             ghcOptions opts ++
             ["-outputdir", outDir, "-i" ++ outDir, "-o", mainPath, mainModPath]
         output <- checkProcess mainPath [] $ Aeson.encode arg
