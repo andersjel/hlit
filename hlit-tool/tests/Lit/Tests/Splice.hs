@@ -18,7 +18,7 @@ case_basic_splice = do
     let p s = x
           where H.ParseOk x = H.parse s
         mkSpl t x = splice (p t) (p x)
-        testSplice = (,,) <$> mkSpl "IO Int" "return 10" 
+        testSplice = (,,) <$> mkSpl "IO Int" "return 10"
                           <*> pure ()
                           <*> mkSpl "IO String" "return \"test\""
     r <- runSplice def () testSplice

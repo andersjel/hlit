@@ -33,7 +33,7 @@ blockExpr  = renderExpr "renderBlock_"
 inlineExpr = renderExpr "render_"
 
 spliceBlock :: P.Block -> Maybe (Splice [P.Block])
-spliceBlock r@(P.CodeBlock (_, classes, _) str) = Just $ 
+spliceBlock r@(P.CodeBlock (_, classes, _) str) = Just $
     case () of
         _ | "splice" `elem` classes -> f str
         _ | "do"     `elem` classes -> f $ "do\n" ++ str
@@ -54,7 +54,7 @@ extractSplice = walk spliceInline spliceBlock
 
 extractCode :: P.Pandoc -> String
 extractCode = getConst . walk (const Nothing) f
-  where 
+  where
     f (P.CodeBlock (_, classes, _) str) = Just $
         if "haskell" `elem` classes && "ignore" `notElem` classes
           then Const $ str ++ "\n" else pure []

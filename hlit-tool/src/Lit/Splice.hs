@@ -114,7 +114,7 @@ spliceModName = H.ModuleName "HLitSpliceMod"
 
 mkSpliceMod :: Options -> Splice a -> H.Module
 mkSpliceMod opts (Splice exprs _)
-    = tmap setName 
+    = tmap setName
     . tmap addExports . tmap addSpliceImports . tmap addSplices
     $ inputContent opts
   where
@@ -172,8 +172,8 @@ checkCallSilent com args = do
         ExitSuccess   -> return ()
         ExitFailure n -> throwError $ CommandError com args n
 
-checkProcess 
-    :: (Err.MonadError Error m, MonadIO m) 
+checkProcess
+    :: (Err.MonadError Error m, MonadIO m)
     => FilePath         -- ^ Command to run
     -> [String]         -- ^ Arguments
     -> BL.ByteString    -- ^ Standard input
@@ -186,18 +186,18 @@ checkProcess com args stdin = do
         ExitSuccess   -> return stdout
         ExitFailure n -> throwError $ CommandError com args n
 
-runSplice 
-    :: (Aeson.ToJSON b) 
-    => Options 
-    -> b 
-    -> Splice a 
+runSplice
+    :: (Aeson.ToJSON b)
+    => Options
+    -> b
+    -> Splice a
     -> IO (Either Error a)
-runSplice opts arg spl@(Splice _ loader) 
+runSplice opts arg spl@(Splice _ loader)
     = withOutputDir opts $ \outDir -> runErrorT $ do
-        let 
+        let
             spliceMod = mkSpliceMod opts spl
             mainMod   = mkMainMod opts spl
-            storeMod path m = liftIO $ 
+            storeMod path m = liftIO $
                 IO.withFile path IO.WriteMode $ \h ->
                     IO.hPutStrLn h $ H.prettyPrint m
             spliceModPath = combine outDir "HLitSpliceMod.hs"

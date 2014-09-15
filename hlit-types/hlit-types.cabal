@@ -6,7 +6,7 @@ version:             0.1.0.0
 synopsis:            Types used in hlit documents
 
 -- A longer description of the package.
--- description:         
+-- description:
 
 license:             GPL-3
 license-file:        ../LICENSE
@@ -16,9 +16,9 @@ copyright:           Copyright (c) 2014 Anders Jellinggaard
 category:            Text
 build-type:          Simple
 
--- Extra files to be distributed with the package, such as examples or a 
+-- Extra files to be distributed with the package, such as examples or a
 -- README.
--- extra-source-files:  
+-- extra-source-files:
 
 cabal-version:       >=1.10
 

@@ -1,6 +1,6 @@
 {-# OPTIONS_HADDOCK hide #-}
 
-module Text.Lit.Internal 
+module Text.Lit.Internal
     ( render_
     , renderBlock_
     , BlockType

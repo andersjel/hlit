@@ -22,15 +22,15 @@ import qualified Text.Pandoc.Builder    as Pandoc
 -- instance, in the document
 --
 -- > Pi is equal to: `@ pi :: Double`.
--- 
+--
 -- the `render` method would be called to convert @pi@ to pandoc
 -- `Pandoc.Inlines`.
 class Render a where
-    
+
     -- | Convert to pandoc types within the `Report` monad. See
     -- "Text.Pandoc.Builder" if you need to write instances.
     render :: a -> Report Pandoc.Inlines
-    
+
     -- | Special case for lists. This makes it possible to render a `String`
     -- differently from other lists. Compare `Text.Show.showList` from @base@.
     -- The default implementation in terms of `render` should normally

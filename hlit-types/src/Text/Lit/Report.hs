@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module Text.Lit.Report ( 
+module Text.Lit.Report (
     -- * The `Report` monad
     Report
     -- ** Extendable configuration
@@ -90,11 +90,11 @@ getReportState = Report State.get
 {- |
     A mutable variable in the `Report` monad.
 
-    Unlike `Data.IORef` and friends. `ConfigVar` values can 
+    Unlike `Data.IORef` and friends. `ConfigVar` values can
     be safely made outside the `Report` monad.
 
     > -- This example creates a lineColor ConfigVar
-    > 
+    >
     > data LineColorTag = LineColorTag deriving Typeable -- Don't export this type.
     > lineColor :: ConfigVar Color
     > lineColor = fromTag LineColorTag blue -- blue is the default color.
@@ -108,13 +108,13 @@ getReportState = Report State.get
 
     Internally the `Report` monad holds a `Data.Set.Set` which
     maps the `Data.Typeable.TypeRef` of a /tag/ type to the current
-    value held by the variable. This set starts out empty, and a 
-    default value is returned if `get` is called. 
+    value held by the variable. This set starts out empty, and a
+    default value is returned if `get` is called.
     By using a tag type, instead of something like a string identifier,
     a module can safe-guard against name collision by not exporting the
     tag type.
 -}
-data ConfigVar a 
+data ConfigVar a
     = GetSetVar (Report a) (a -> Report ())
 
 -- | Create something that mimics an ordinary `ConfigVar` but allows
@@ -142,7 +142,7 @@ fromTag tag d = GetSetVar getter setter
 -- | Create a `ConfigVar` for a type that is an instance of `Data.Default`.
 --   The type itself is used as the /tag/ (see `ConfigVar`). There can only
 --   be one singleton per type.
---   
+--
 --   > data PlotConfig = PlotConfig {lineColor :: Color}
 --   > plotConfig :: ConfigVar PlotConfig
 --   > plotConfig = singleton -- Each Report will hold one PlotConfig

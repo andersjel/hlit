@@ -160,11 +160,11 @@ run args = do
             , Splice.ghcOptions    = ghcOptions args
             , Splice.outputDir     = spliceFolder args
             }
-        ropt = Report.Options 
-            $ mkOutputOptions 
-                <$> outputFile args 
+        ropt = Report.Options
+            $ mkOutputOptions
+                <$> outputFile args
                 <*> outputFolder args
-        mkOutputOptions p n = 
+        mkOutputOptions p n =
             Report.OutputOptions (replaceFileName p n) (n ++ "/")
     -- The False below instructs createDirectoryIfMissing to not create parent
     -- dirs.
