@@ -12,7 +12,8 @@ function hlit () {
 function open-doc () {
     DOCROOT=("$HLITBOX"/share/doc/*)
     DOC=("$DOCROOT/$1"-*/html/index.html)
-    xdg-open "$DOC"
+    shift
+    "${BROWSER:-xdg-open}" "$DOC" "$@"
 }
 
 function show-html () {
