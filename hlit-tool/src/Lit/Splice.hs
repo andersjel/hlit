@@ -102,11 +102,18 @@ fromEither (Left x) = throwError x
 mkSpliceNames :: Int -> [H.Name]
 mkSpliceNames = H.genNames "_hlit_splice"
 
+exportSpec :: H.Name -> H.ExportSpec
+#if MIN_VERSION_haskell_src_exts(1,16,0)
+exportSpec = H.EVar H.NoNamespace . H.UnQual
+#else
+exportSpec = H.EVar . H.UnQual
+#endif
+
 spliceModName :: H.ModuleName
 spliceModName = H.ModuleName "HLitSpliceMod"
 
 mkSpliceMod :: Options -> Splice a -> H.Module
-mkSpliceMod opts (Splice exprs _) 
+mkSpliceMod opts (Splice exprs _)
     = tmap setName 
     . tmap addExports . tmap addSpliceImports . tmap addSplices
     $ inputContent opts
@@ -114,7 +121,7 @@ mkSpliceMod opts (Splice exprs _)
     setName          = const spliceModName
     names            = mkSpliceNames $ Seq.length exprs
     addExports :: Maybe [H.ExportSpec] -> Maybe [H.ExportSpec]
-    addExports       = fmap (++ map (H.EVar . H.UnQual) names)
+    addExports       = fmap (++ map exportSpec names)
     addSpliceImports = (++ spliceImports opts)
     addSplices       = (++ splices)
     splices          = concat $ zipWith toSplice names (toList exprs)
@@ -125,16 +132,17 @@ mkSpliceMod opts (Splice exprs _)
 mkMainMod :: Options -> Splice b -> H.Module
 mkMainMod opts (Splice exprs _) = mainMod
   where
-    H.ParseOk mainModBase = H.parse
-        "module Main where\n\
-        \import qualified HLitSpliceMod\n\
-        \import qualified Data.Aeson           as A\n\
-        \import           Data.Aeson           (toJSON)\n\
-        \import qualified Data.ByteString.Lazy as B\n\
-        \main = do\n\
-        \  Just input <- A.decode `fmap` B.getContents\n\
-        \  output <- mainRun input $ sequence splices\n\
-        \  B.putStr $ A.encode output\n"
+    H.ParseOk mainModBase = H.parse $ unlines
+        [ "module Main where"
+        , "import qualified HLitSpliceMod"
+        , "import qualified Data.Aeson           as A"
+        , "import           Data.Aeson           (toJSON)"
+        , "import qualified Data.ByteString.Lazy as B"
+        , "main = do"
+        , "    Just input <- A.decode `fmap` B.getContents"
+        , "    output <- mainRun input $ sequence splices"
+        , "    B.putStr $ A.encode output"
+        , ""]
     names          = mkSpliceNames $ Seq.length exprs
     mainMod        = addMainExpr . addMainImports $ mainModBase
     addMainExpr    = tmap (++ mainModDecls)

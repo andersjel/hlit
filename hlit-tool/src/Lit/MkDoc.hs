@@ -61,6 +61,16 @@ extractCode = getConst . walk (const Nothing) f
     f _ = Nothing
 
 qualifiedImport :: String -> H.ImportDecl
+#if MIN_VERSION_haskell_src_exts(1,16,0)
+qualifiedImport x = H.ImportDecl noLoc
+    (H.ModuleName x)
+    True    -- Qualified
+    False   -- With SOURCE pragma?
+    False   -- Safe import
+    Nothing -- Package name
+    Nothing -- As ...
+    Nothing -- Import specs
+#else
 qualifiedImport x = H.ImportDecl noLoc
     (H.ModuleName x)
     True    -- Qualified
@@ -68,6 +78,7 @@ qualifiedImport x = H.ImportDecl noLoc
     Nothing -- Package name
     Nothing -- As ...
     Nothing -- Import specs
+#endif
 
 docSpliceOptions :: Splice.Options
 docSpliceOptions = def
