@@ -4,15 +4,16 @@
 module Lit where
 
 import           Control.Applicative
-import           Control.Monad                  (unless, when)
+import           Control.Monad                  (unless)
 import qualified Data.Aeson                     as Aeson
-import           Data.ByteString.Lazy           (ByteString, hPut)
+import           Data.ByteString.Lazy           (ByteString, hPut, hGetContents)
 import           Data.Char                      (toUpper)
 import           Data.Default
-import           Data.Foldable                  (for_, traverse_)
+import           Data.Foldable                  (for_)
+import           Data.List                      (intercalate)
 import           Data.Lens.Common
 import           Data.Lens.Template
-import           Data.Maybe                     (fromMaybe, isJust)
+import           Data.Maybe                     (fromMaybe)
 import qualified Language.Haskell.Exts          as H
 import qualified Lit.MkDoc                      as MkDoc
 import qualified Lit.Splice                     as Splice
@@ -21,15 +22,17 @@ import qualified System.Console.GetOpt          as GetOpt
 import           System.Environment             (getArgs)
 import           System.Directory               (createDirectoryIfMissing)
 import           System.Exit                    (ExitCode (..), exitFailure)
-import           System.FilePath                (replaceFileName)
+import qualified System.FilePath                as FilePath
+import           System.FilePath                ((</>))
 import qualified System.IO                      as IO
 import           System.Process.ByteString.Lazy (readProcessWithExitCode)
 import qualified Text.Lit.Report                as Report
 import           Text.Pandoc.Builder            (Pandoc)
+import           System.IO.Temp                 (withTempDirectory)
 
 data Arguments = Arguments
     { ghcOptions    :: [String]
-    , inputFile     :: FilePath
+    , inputFile     :: Maybe FilePath
     , inputFormat   :: Maybe String
     , outputFile    :: Maybe FilePath
     , outputFormat  :: Maybe String
@@ -86,8 +89,8 @@ options =
         (ReqArg (setL lOutputFile . Just) "FILE")
         "Output file (omit for stdout)"
     , Option "m" ["media"]
-        (ReqArg (setL lMediaFolder . Just) "NAME")
-        "Name of a folder for images and such\n(only letters from a-z)"
+        (ReqArg (setL lMediaFolder . Just) "PATH")
+        "Path to a folder to use for generated images and media"
     , Option "" ["tmp"]
         (ReqArg (setL lTmpFolder . Just) "PATH") $ unlines
         [ "Store temporary generated Haskell code and"
@@ -97,7 +100,7 @@ options =
 
 getArguments :: IO Arguments
 getArguments = do
-    let header = "usage: hlit [OPTIONS] (INPUT-FILE or -)"
+    let header = "usage: hlit [OPTIONS] [INPUT-FILE]"
         info = GetOpt.usageInfo header options
         bail = putStrLn info >> exitFailure
     args <- parseArguments <$> getArgs
@@ -110,14 +113,10 @@ parseArguments args = do
     let (flags, args', errors) = GetOpt.getOpt GetOpt.Permute options args
         arguments = foldl (flip id) def flags
     unless (null errors) $ Left errors
-    when (isJust $ mediaFolder arguments) $
-        unless (isJust $ outputFile arguments) $
-            Left ["stdout cannot be used for output when "
-                ++ "an output folder is specified (use -o FILE or "
-                ++ "omit --output-folder FOLDER-NAME)"]
     case args' of
-        [inputFile'] -> Right arguments{inputFile=inputFile'}
-        _ -> Left ["Missing argument: INPUT-FILE"]
+        [inputFile'] -> Right arguments{inputFile=Just inputFile'}
+        [] -> Right arguments
+        _ -> Left ["Too many positional arguments"]
 
 callProcess :: FilePath -> [String] -> ByteString -> IO ByteString
 callProcess exe args stdin = do
@@ -132,8 +131,12 @@ readDoc args = do
     let args' =
             pandocOptions args
             ++ maybe [] (\f -> ["-f", f]) (inputFormat args)
-            ++ ["-t", "json", inputFile args]
-    output <- callProcess (pandocExe args) args' ""
+            ++ ["-t", "json"]
+            ++ maybe [] (:[]) (inputFile args)
+    stdin <- case inputFile args of
+        Nothing -> hGetContents IO.stdin
+        _       -> return ""
+    output <- callProcess (pandocExe args) args' stdin
     case Aeson.decode' output of
         Nothing -> do
             putStrLn "Unexpected output from pandoc:"
@@ -146,10 +149,16 @@ writeDoc args doc = do
     let args' =
             pandocOptions args
             ++ maybe [] (\t -> ["-t", t]) (outputFormat args)
-            ++ ["-o", fromMaybe "-"  $ outputFile args]
+            ++ ["-o", fromMaybe "-" $ outputFile args]
             ++ ["-f", "json", "-"]
     output <- callProcess (pandocExe args) args' $ Aeson.encode doc
     hPut IO.stdout output
+
+withDir :: String -> Maybe FilePath -> (FilePath -> IO a) -> IO a
+withDir template Nothing act = withTempDirectory "." template act
+withDir _ (Just d) act = do
+    createDirectoryIfMissing False d
+    act d
 
 run :: Arguments -> IO ()
 run args = do
@@ -158,26 +167,27 @@ run args = do
     inputModule <- case H.parse code of
         H.ParseOk x -> return x
         failure -> fail $ show failure
-    let splice = MkDoc.extractSplice doc
-        sopt = MkDoc.docSpliceOptions
-            { Splice.inputFilePath = Just $ inputFile args
-            , Splice.inputContent  = inputModule
-            , Splice.ghcOptions    = ghcOptions args
-            , Splice.ghcExe        = ghcExe args
-            , Splice.outputDir     = tmpFolder args
-            }
-        ropt = Report.Options
-            $ mkOutputOptions
-                <$> outputFile args
-                <*> mediaFolder args
-        mkOutputOptions p n =
-            Report.OutputOptions (replaceFileName p n) (n ++ "/")
-    -- TODO: mediaFolder is the name of a folder relative to the output
-    -- document, not a path relative to cwd.
-    for_ [tmpFolder args, mediaFolder args] $
-        -- traverse the Maybes, create the folders, don't create parent dirs.
-        traverse_ $ createDirectoryIfMissing False
-    doc' <- Splice.runSplice sopt ropt splice >>= \r -> case r of
-        Right x -> return x
-        Left err -> print err >> fail "Conversion failed."
-    writeDoc args doc'
+    withDir "hlit." (tmpFolder args) $ \tmpFolder' -> do
+        let mediaFolder' = case mediaFolder args of
+                Nothing -> tmpFolder' </> "media"
+                Just d  -> d
+        createDirectoryIfMissing False mediaFolder'
+        let baseDir = case inputFile args of
+                Nothing -> "."
+                Just p  -> FilePath.dropFileName p
+            mediaRel = FilePath.makeRelative baseDir mediaFolder'
+            -- TODO escape
+            mediaUrl = intercalate "/" $ FilePath.splitPath mediaRel
+            splice = MkDoc.extractSplice doc
+            sopt = MkDoc.docSpliceOptions
+                { Splice.inputFilePath = inputFile args
+                , Splice.inputContent  = inputModule
+                , Splice.ghcOptions    = ghcOptions args
+                , Splice.ghcExe        = ghcExe args
+                , Splice.outputDir     = Just tmpFolder'
+                }
+            ropt = Report.Options $ Just $ Report.OutputOptions mediaFolder' mediaUrl
+        doc' <- Splice.runSplice sopt ropt splice >>= \r -> case r of
+            Right x -> return x
+            Left err -> print err >> fail "Conversion failed."
+        writeDoc args doc'
