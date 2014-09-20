@@ -59,6 +59,7 @@ data Options = Options
     , mainRun       :: H.Exp
     , outputDir     :: Maybe FilePath
     , ghcOptions    :: [String]
+    , ghcExe        :: FilePath
     }
 
 instance Default Options where
@@ -70,6 +71,7 @@ instance Default Options where
         , mainRun       = H.lamE noLoc [H.pTuple []] (H.function "id")
         , outputDir     = def
         , ghcOptions    = def
+        , ghcExe        = "ghc"
         }
       where
         H.ParseOk base = H.parse "module SpliceBase where\n"
@@ -205,10 +207,10 @@ runSplice opts arg spl@(Splice _ loader)
             mainPath = combine outDir "HLitSpliceMain"
         storeMod spliceModPath spliceMod
         storeMod mainModPath mainMod
-        checkCallSilent "ghc" $
+        checkCallSilent (ghcExe opts) $
             ghcOptions opts ++
             ["-outputdir", outDir, "-i" ++ outDir, spliceModPath]
-        checkCallSilent "ghc" $
+        checkCallSilent (ghcExe opts) $
             ghcOptions opts ++
             ["-outputdir", outDir, "-i" ++ outDir, "-o", mainPath, mainModPath]
         output <- checkProcess mainPath [] $ Aeson.encode arg

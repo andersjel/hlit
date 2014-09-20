@@ -9,7 +9,7 @@ import qualified Data.Aeson                     as Aeson
 import           Data.ByteString.Lazy           (ByteString, hPut)
 import           Data.Char                      (toUpper)
 import           Data.Default
-import           Data.Foldable                  (for_)
+import           Data.Foldable                  (for_, traverse_)
 import           Data.Lens.Common
 import           Data.Lens.Template
 import           Data.Maybe                     (fromMaybe, isJust)
@@ -33,10 +33,11 @@ data Arguments = Arguments
     , inputFormat   :: Maybe String
     , outputFile    :: Maybe FilePath
     , outputFormat  :: Maybe String
-    , outputFolder  :: Maybe String
+    , mediaFolder   :: Maybe String
     , pandocExe     :: FilePath
+    , ghcExe        :: FilePath
     , pandocOptions :: [String]
-    , spliceFolder  :: Maybe FilePath
+    , tmpFolder     :: Maybe FilePath
     }
 
 nameMakeLens ''Arguments $ \(c:cs) -> Just $ 'l' : toUpper c : cs
@@ -48,10 +49,11 @@ instance Default Arguments where
         , inputFormat = def
         , outputFile = def
         , outputFormat = def
-        , outputFolder = def
+        , mediaFolder = def
         , pandocExe = "pandoc"
+        , ghcExe = "ghc"
         , pandocOptions = def
-        , spliceFolder = def
+        , tmpFolder = def
         }
 
 options :: [OptDescr (Arguments -> Arguments)]
@@ -62,6 +64,9 @@ options =
     , Option "G" ["ghc-options"]
         (ReqArg (\x -> modL lGhcOptions (++words x)) "OPTIONs")
         "Several options for GHC (split on spaces)"
+    , Option "" ["ghc-path"]
+        (ReqArg (setL lGhcExe) "EXEC")
+        "Where to find the ghc executeable"
     , Option "p" ["pandoc-option"]
         (ReqArg (\x -> modL lPandocOptions (++[x])) "OPTION")
         "An option for pandoc"
@@ -80,14 +85,14 @@ options =
     , Option "o" ["output"]
         (ReqArg (setL lOutputFile . Just) "FILE")
         "Output file (omit for stdout)"
-    , Option "" ["output-folder"]
-        (ReqArg (setL lOutputFolder . Just) "FOLDER-NAME")
+    , Option "m" ["media"]
+        (ReqArg (setL lMediaFolder . Just) "NAME")
         "Name of a folder for images and such\n(only letters from a-z)"
-    , Option "" ["splice-folder"]
-        (ReqArg (setL lSpliceFolder . Just) "PATH")
-        ( "Store temporary generated Haskell code and\n"
-        ++ "executeables in this folder (and leave them\n"
-        ++ "there after the program terminates)")
+    , Option "" ["tmp"]
+        (ReqArg (setL lTmpFolder . Just) "PATH") $ unlines
+        [ "Store temporary generated Haskell code and"
+        , "executeables in this folder (and leave them"
+        , "there after the program terminates)"]
     ]
 
 getArguments :: IO Arguments
@@ -105,7 +110,7 @@ parseArguments args = do
     let (flags, args', errors) = GetOpt.getOpt GetOpt.Permute options args
         arguments = foldl (flip id) def flags
     unless (null errors) $ Left errors
-    when (isJust $ outputFolder arguments) $
+    when (isJust $ mediaFolder arguments) $
         unless (isJust $ outputFile arguments) $
             Left ["stdout cannot be used for output when "
                 ++ "an output folder is specified (use -o FILE or "
@@ -158,17 +163,20 @@ run args = do
             { Splice.inputFilePath = Just $ inputFile args
             , Splice.inputContent  = inputModule
             , Splice.ghcOptions    = ghcOptions args
-            , Splice.outputDir     = spliceFolder args
+            , Splice.ghcExe        = ghcExe args
+            , Splice.outputDir     = tmpFolder args
             }
         ropt = Report.Options
             $ mkOutputOptions
                 <$> outputFile args
-                <*> outputFolder args
+                <*> mediaFolder args
         mkOutputOptions p n =
             Report.OutputOptions (replaceFileName p n) (n ++ "/")
-    -- The False below instructs createDirectoryIfMissing to not create parent
-    -- dirs.
-    for_ (spliceFolder args) $ createDirectoryIfMissing False
+    -- TODO: mediaFolder is the name of a folder relative to the output
+    -- document, not a path relative to cwd.
+    for_ [tmpFolder args, mediaFolder args] $
+        -- traverse the Maybes, create the folders, don't create parent dirs.
+        traverse_ $ createDirectoryIfMissing False
     doc' <- Splice.runSplice sopt ropt splice >>= \r -> case r of
         Right x -> return x
         Left err -> print err >> fail "Conversion failed."
