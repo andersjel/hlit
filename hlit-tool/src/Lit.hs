@@ -166,6 +166,20 @@ withDir _ (Just d) act = do
     createDirectoryIfMissing False d
     act d
 
+setupMediaFolder :: Arguments -> FilePath -> IO (FilePath, String)
+setupMediaFolder args tmp = do
+    let path = fromMaybe (tmp </> "media") $ mediaFolder args
+        base = case inputFile args of
+            Nothing -> "."
+            Just p  -> FilePath.dropFileName p
+        relative = FilePath.makeRelative base path
+        url = intercalate "/" $ map escape components
+          where
+            components = FilePath.splitDirectories relative
+            escape = URI.escapeURIString URI.isUnescapedInURIComponent
+    createDirectoryIfMissing False path
+    return (path, url)
+
 run :: Arguments -> IO ()
 run args = do
     doc <- readDoc args
@@ -173,27 +187,17 @@ run args = do
     inputModule <- case H.parse code of
         H.ParseOk x -> return x
         failure -> fail $ show failure
-    withDir "hlit." (tmpFolder args) $ \tmpFolder' -> do
-        let mediaFolder' = fromMaybe (tmpFolder' </> "media") $ mediaFolder args
-        createDirectoryIfMissing False mediaFolder'
-        let baseDir = case inputFile args of
-                Nothing -> "."
-                Just p  -> FilePath.dropFileName p
-            mediaRel = FilePath.makeRelative baseDir mediaFolder'
-            mediaUrl = intercalate "/" $ map escape components
-              where
-                components = FilePath.splitDirectories mediaRel
-                escape = URI.escapeURIString URI.isUnescapedInURIComponent
-            splice = MkDoc.extractSplice doc
-            sopt = MkDoc.docSpliceOptions
+    withDir "hlit." (tmpFolder args) $ \tmp -> do
+        (mediaPath, mediaUrl) <- setupMediaFolder args tmp
+        let splice = MkDoc.extractSplice doc
+            spliceOpt = MkDoc.docSpliceOptions
                 { Splice.inputFilePath = inputFile args
                 , Splice.inputContent  = inputModule
                 , Splice.ghcOptions    = ghcOptions args
                 , Splice.ghcExe        = ghcExe args
-                , Splice.outputDir     = Just tmpFolder'
+                , Splice.outputDir     = Just tmp
                 }
-            ropt = Report.Options $ Just $ Report.OutputOptions mediaFolder' mediaUrl
-        doc' <- Splice.runSplice sopt ropt splice >>= \r -> case r of
-            Right x -> return x
-            Left err -> print err >> fail "Conversion failed."
-        writeDoc args doc'
+            outputOpt = Report.OutputOptions mediaPath mediaUrl
+            reportOpt = Report.Options $ Just outputOpt
+        result <- Splice.runSplice spliceOpt reportOpt splice
+        either (fail . show) (writeDoc args) result

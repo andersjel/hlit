@@ -160,7 +160,7 @@ splitThousands digits =
     groups = reverse . chunksOf 3 . reverse $ digits
     f [] = ""
     f [g] = r g
-    f (g:gs) = r g ++ "," ++ f gs
+    f (g:gs) = r g ++ "\\," ++ f gs
     r = concatMap show
 
 renderFloatC :: RealFloat a => FloatContext -> a -> Pandoc.Inlines
