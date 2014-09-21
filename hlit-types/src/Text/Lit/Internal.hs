@@ -6,9 +6,9 @@ module Text.Lit.Internal
     , BlockType
     , InlineType ) where
 
+import           Data.Foldable       (toList)
 import qualified Text.Lit.Render     as R
 import           Text.Lit.Report     (Report)
-import           Data.Foldable       (toList)
 import qualified Text.Pandoc.Builder as B
 
 type InlineType = Report [B.Inline]

@@ -22,7 +22,8 @@ import           Data.Default
 import           Data.List.Split                      (chunksOf)
 import           Data.Typeable                        (Typeable)
 import qualified Numeric
-import           Text.Lit.Report                      (Report, ConfigVar, singleton, refine, get)
+import           Text.Lit.Report                      (ConfigVar, Report, get,
+                                                       refine, singleton)
 import qualified Text.Pandoc.Builder                  as Pandoc
 
 #ifdef COMPILE_TESTS

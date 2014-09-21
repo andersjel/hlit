@@ -166,7 +166,7 @@ checkCallSilent
     :: (Err.MonadError Error m, MonadIO m)
     => FilePath -> [String] -> m ()
 checkCallSilent com args = do
-    let c = (Process.proc com args)
+    let c = Process.proc com args
         c' = c{Process.std_out=Process.UseHandle IO.stderr}
     (_, _, _, h) <- liftIO $ Process.createProcess c'
     exitCode <- liftIO $ Process.waitForProcess h

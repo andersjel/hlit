@@ -44,7 +44,7 @@ spliceBlock _ = Nothing
 spliceInline :: P.Inline -> Maybe (Splice [P.Inline])
 spliceInline r@(P.Code attr str) = Just $
     case dropWhile isSpace str of
-        '@' : '@' : rest -> pure $ [P.Code attr $ '@' : rest]
+        '@' : '@' : rest -> pure [P.Code attr $ '@' : rest]
         '@' : expr -> splice inlineType $ inlineExpr expr
         _ -> pure [r]
 spliceInline _ = Nothing

@@ -1,13 +1,13 @@
 module Text.Lit.DiagramsSVG (renderSvg) where
 
+import           Control.Applicative
+import           Data.Foldable                (toList)
+import qualified Diagrams.Backend.SVG         as S
+import qualified Diagrams.Prelude             as D
+import qualified Text.Blaze.Svg.Renderer.Utf8 as B
+import           Text.Lit.Render              (Render, render)
 import qualified Text.Lit.Report              as R
 import qualified Text.Pandoc.Builder          as P
-import qualified Text.Blaze.Svg.Renderer.Utf8 as B
-import qualified Diagrams.Prelude             as D
-import qualified Diagrams.Backend.SVG         as S
-import           Text.Lit.Render              (Render, render)
-import           Data.Foldable                (toList)
-import           Control.Applicative
 
 renderSvg
     :: Render a

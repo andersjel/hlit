@@ -6,29 +6,30 @@ module Lit where
 import           Control.Applicative
 import           Control.Monad                  (unless)
 import qualified Data.Aeson                     as Aeson
-import           Data.ByteString.Lazy           (ByteString, hPut, hGetContents)
+import           Data.ByteString.Lazy           (ByteString, hPut)
+import qualified Data.ByteString.Lazy           as BL
 import           Data.Char                      (toUpper)
 import           Data.Default
-import           Data.Foldable                  (for_)
-import           Data.List                      (intercalate)
+import           Data.Foldable                  (for_, toList)
 import           Data.Lens.Common
 import           Data.Lens.Template
+import           Data.List                      (intercalate)
 import           Data.Maybe                     (fromMaybe)
 import qualified Language.Haskell.Exts          as H
 import qualified Lit.MkDoc                      as MkDoc
 import qualified Lit.Splice                     as Splice
 import           System.Console.GetOpt          (ArgDescr (..), OptDescr (..))
 import qualified System.Console.GetOpt          as GetOpt
-import           System.Environment             (getArgs)
 import           System.Directory               (createDirectoryIfMissing)
+import           System.Environment             (getArgs)
 import           System.Exit                    (ExitCode (..), exitFailure)
-import qualified System.FilePath                as FilePath
 import           System.FilePath                ((</>))
+import qualified System.FilePath                as FilePath
 import qualified System.IO                      as IO
+import           System.IO.Temp                 (withTempDirectory)
 import           System.Process.ByteString.Lazy (readProcessWithExitCode)
 import qualified Text.Lit.Report                as Report
 import           Text.Pandoc.Builder            (Pandoc)
-import           System.IO.Temp                 (withTempDirectory)
 
 data Arguments = Arguments
     { ghcOptions    :: [String]
@@ -132,9 +133,9 @@ readDoc args = do
             pandocOptions args
             ++ maybe [] (\f -> ["-f", f]) (inputFormat args)
             ++ ["-t", "json"]
-            ++ maybe [] (:[]) (inputFile args)
+            ++ toList (inputFile args)
     stdin <- case inputFile args of
-        Nothing -> hGetContents IO.stdin
+        Nothing -> BL.getContents
         _       -> return ""
     output <- callProcess (pandocExe args) args' stdin
     case Aeson.decode' output of
@@ -149,8 +150,8 @@ writeDoc args doc = do
     let args' =
             pandocOptions args
             ++ maybe [] (\t -> ["-t", t]) (outputFormat args)
-            ++ ["-o", fromMaybe "-" $ outputFile args]
-            ++ ["-f", "json", "-"]
+            ++ maybe [] (\o -> ["-o", o]) (outputFile args)
+            ++ ["-f", "json"]
     output <- callProcess (pandocExe args) args' $ Aeson.encode doc
     hPut IO.stdout output
 
@@ -168,9 +169,7 @@ run args = do
         H.ParseOk x -> return x
         failure -> fail $ show failure
     withDir "hlit." (tmpFolder args) $ \tmpFolder' -> do
-        let mediaFolder' = case mediaFolder args of
-                Nothing -> tmpFolder' </> "media"
-                Just d  -> d
+        let mediaFolder' = fromMaybe (tmpFolder' </> "media") $ mediaFolder args
         createDirectoryIfMissing False mediaFolder'
         let baseDir = case inputFile args of
                 Nothing -> "."

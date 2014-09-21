@@ -119,7 +119,7 @@ data ConfigVar a
 
 -- | Create something that mimics an ordinary `ConfigVar` but allows
 --   arbitrary `Report` actions.
-fromGetSet :: (Report a) -> (a -> Report ()) -> ConfigVar a
+fromGetSet :: Report a -> (a -> Report ()) -> ConfigVar a
 fromGetSet = GetSetVar
 
 -- | Create a `ConfigVar` with explicitly given tag and default value.
