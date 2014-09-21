@@ -10,7 +10,7 @@ import           Data.ByteString.Lazy           (ByteString, hPut)
 import qualified Data.ByteString.Lazy           as BL
 import           Data.Char                      (toUpper)
 import           Data.Default
-import           Data.Foldable                  (for_, toList)
+import           Data.Foldable                  (for_)
 import           Data.Lens.Common
 import           Data.Lens.Template
 import           Data.List                      (intercalate)
@@ -18,6 +18,7 @@ import           Data.Maybe                     (fromMaybe)
 import qualified Language.Haskell.Exts          as H
 import qualified Lit.MkDoc                      as MkDoc
 import qualified Lit.Splice                     as Splice
+import qualified Network.URI                    as URI
 import           System.Console.GetOpt          (ArgDescr (..), OptDescr (..))
 import qualified System.Console.GetOpt          as GetOpt
 import           System.Directory               (createDirectoryIfMissing)
@@ -131,9 +132,11 @@ readDoc :: Arguments -> IO Pandoc
 readDoc args = do
     let args' =
             pandocOptions args
-            ++ maybe [] (\f -> ["-f", f]) (inputFormat args)
+            ++ maybe [] (\x -> ["-f", x]) (inputFormat args)
             ++ ["-t", "json"]
-            ++ toList (inputFile args)
+            -- We convert x to ./x so that we do not have to care about files
+            -- starting in '-'
+            ++ maybe [] (\x -> ["." </> x]) (inputFile args)
     stdin <- case inputFile args of
         Nothing -> BL.getContents
         _       -> return ""
@@ -149,8 +152,10 @@ writeDoc :: Arguments -> Pandoc -> IO ()
 writeDoc args doc = do
     let args' =
             pandocOptions args
-            ++ maybe [] (\t -> ["-t", t]) (outputFormat args)
-            ++ maybe [] (\o -> ["-o", o]) (outputFile args)
+            ++ maybe [] (\x -> ["-t", x]) (outputFormat args)
+            -- We convert x to ./x so that we do not have to care about files
+            -- starting in '-'
+            ++ maybe [] (\x -> ["-o", "." </> x]) (outputFile args)
             ++ ["-f", "json"]
     output <- callProcess (pandocExe args) args' $ Aeson.encode doc
     hPut IO.stdout output
@@ -175,8 +180,10 @@ run args = do
                 Nothing -> "."
                 Just p  -> FilePath.dropFileName p
             mediaRel = FilePath.makeRelative baseDir mediaFolder'
-            -- TODO escape
-            mediaUrl = intercalate "/" $ FilePath.splitPath mediaRel
+            mediaUrl = intercalate "/" $ map escape components
+              where
+                components = FilePath.splitDirectories mediaRel
+                escape = URI.escapeURIString URI.isUnescapedInURIComponent
             splice = MkDoc.extractSplice doc
             sopt = MkDoc.docSpliceOptions
                 { Splice.inputFilePath = inputFile args

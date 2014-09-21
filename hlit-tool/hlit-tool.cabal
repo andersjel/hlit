@@ -36,6 +36,7 @@ library
     filepath,
     haskell-src-exts,
     mtl,
+    network-uri,
     pandoc-types,
     process,
     process-extras,

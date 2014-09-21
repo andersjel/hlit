@@ -6,4 +6,4 @@ Import the diagrams module and the rendering functions
 
 Here is a circle:
 
-`@renderSvg "" "A circle" (Width 100) $ circle 1`
+`@renderSvg "" "A circle" (Width 100) $ pad 1.1 $ circle 1`
