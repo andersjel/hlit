@@ -1,11 +1,12 @@
 ## Code handling
 
-At the moment, we only support one mode
+Here are the modes we want to support
 
 `hlit --mode=merge`
 
 * **splice or do** — Transformed into a splice
 * **haskell and not ignore** — Copied to splice module
+* **include** — Copied to splice module
 * **not hidden** — Printed in output
 
 If the document is a literate haskell file, it may make more sense to import
@@ -17,6 +18,7 @@ imports. In this case we want
 
 * **splice or do** — Transformed into a splice
 * **haskell and not ignore** — Parsed for imports
+* **include** — Copied to splice module
 * **not hidden** — Printed in output
 
 The imports should be copied to the splice module and an import of the
@@ -25,12 +27,11 @@ document itself should be added to splice module. Lastlty we want a mode
 `hlit --mode=explicit`
 
 * **splice or do** — Transformed into a splice
-* **spliceModule** — Copied to splice module
+* **include** — Copied to splice module
 * **not hidden** — Printed in output
 
 The default should be `hlit --mode=auto` which will select
 
-* `explicit` — if a code block has the class `spliceModule`.
 * `import` — if the document is a literate haskell file.
 * `merge` — otherwise.
 
