@@ -184,7 +184,7 @@ setupMediaFolder args tmp = do
 run :: Arguments -> IO ()
 run args = do
     doc <- readDoc args
-    let code = Extract.extractCode doc
+    let code = Extract.extract Extract.code doc
     inputModule <- case H.parse code of
         H.ParseOk x -> return x
         failure -> fail $ show failure
