@@ -16,7 +16,8 @@ import           Data.Lens.Template
 import           Data.List                      (intercalate)
 import           Data.Maybe                     (fromMaybe)
 import qualified Language.Haskell.Exts          as H
-import qualified Lit.MkDoc                      as MkDoc
+import qualified Lit.Extract                    as Extract
+import qualified Lit.DocSplice                      as DocSplice
 import qualified Lit.Splice                     as Splice
 import qualified Network.URI                    as URI
 import           System.Console.GetOpt          (ArgDescr (..), OptDescr (..))
@@ -183,14 +184,14 @@ setupMediaFolder args tmp = do
 run :: Arguments -> IO ()
 run args = do
     doc <- readDoc args
-    let code = MkDoc.extractCode doc
+    let code = Extract.extractCode doc
     inputModule <- case H.parse code of
         H.ParseOk x -> return x
         failure -> fail $ show failure
     withDir "hlit." (tmpFolder args) $ \tmp -> do
         (mediaPath, mediaUrl) <- setupMediaFolder args tmp
-        let splice = MkDoc.extractSplice doc
-            spliceOpt = MkDoc.docSpliceOptions
+        let splice = DocSplice.mk doc
+            spliceOpt = DocSplice.options
                 { Splice.inputFilePath = inputFile args
                 , Splice.inputContent  = inputModule
                 , Splice.ghcOptions    = ghcOptions args

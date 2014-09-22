@@ -19,6 +19,7 @@ import qualified Data.ByteString.Lazy           as BL
 import           Data.Data                      (Data, Typeable, cast, gmapT)
 import           Data.Default
 import           Data.Foldable                  (toList)
+import qualified Data.Foldable                  as Foldable
 import           Data.Maybe
 import           Data.Monoid
 import           Data.Sequence                  (Seq)
@@ -123,7 +124,7 @@ mkSpliceMod opts (Splice exprs _)
     setName          = const spliceModName
     names            = mkSpliceNames $ Seq.length exprs
     addExports :: Maybe [H.ExportSpec] -> Maybe [H.ExportSpec]
-    addExports       = fmap (++ map exportSpec names)
+    addExports xs    = Just $ Foldable.concat xs ++ map exportSpec names
     addSpliceImports = (++ spliceImports opts)
     addSplices       = (++ splices)
     splices          = concat $ zipWith toSplice names (toList exprs)

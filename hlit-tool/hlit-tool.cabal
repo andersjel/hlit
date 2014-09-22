@@ -44,7 +44,8 @@ library
     transformers
   exposed-modules:
     Lit
-    Lit.MkDoc
+    Lit.DocSplice
+    Lit.Extract
     Lit.Walk
     Lit.Splice
   hs-source-dirs:      src

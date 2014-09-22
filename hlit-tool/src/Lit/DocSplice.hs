@@ -1,7 +1,6 @@
-module Lit.MkDoc
-    ( extractSplice
-    , extractCode
-    , docSpliceOptions
+module Lit.DocSplice
+    ( mk
+    , options
     ) where
 
 import           Control.Applicative
@@ -32,33 +31,25 @@ blockExpr, inlineExpr :: String -> H.Exp
 blockExpr  = renderExpr "renderBlock_"
 inlineExpr = renderExpr "render_"
 
-spliceBlock :: P.Block -> Maybe (Splice [P.Block])
-spliceBlock r@(P.CodeBlock (_, classes, _) str) = Just $
+block :: P.Block -> Maybe (Splice [P.Block])
+block r@(P.CodeBlock (_, classes, _) str) = Just $
     case () of
         _ | "splice" `elem` classes -> f str
         _ | "do"     `elem` classes -> f $ "do\n" ++ str
         _ -> pure $ if "hidden" `elem` classes then [] else [r]
   where f s = splice blockType $ blockExpr s
-spliceBlock _ = Nothing
+block _ = Nothing
 
-spliceInline :: P.Inline -> Maybe (Splice [P.Inline])
-spliceInline r@(P.Code attr str) = Just $
+inline :: P.Inline -> Maybe (Splice [P.Inline])
+inline r@(P.Code attr str) = Just $
     case dropWhile isSpace str of
         '@' : '@' : rest -> pure [P.Code attr $ '@' : rest]
         '@' : expr -> splice inlineType $ inlineExpr expr
         _ -> pure [r]
-spliceInline _ = Nothing
+inline _ = Nothing
 
-extractSplice :: P.Pandoc -> Splice P.Pandoc
-extractSplice = walk spliceInline spliceBlock
-
-extractCode :: P.Pandoc -> String
-extractCode = getConst . walk (const Nothing) f
-  where
-    f (P.CodeBlock (_, classes, _) str) = Just $
-        if "haskell" `elem` classes && "ignore" `notElem` classes
-          then Const $ str ++ "\n" else pure []
-    f _ = Nothing
+mk :: P.Pandoc -> Splice P.Pandoc
+mk = walk inline block
 
 qualifiedImport :: String -> H.ImportDecl
 #if MIN_VERSION_haskell_src_exts(1,16,0)
@@ -80,8 +71,8 @@ qualifiedImport x = H.ImportDecl noLoc
     Nothing -- Import specs
 #endif
 
-docSpliceOptions :: Splice.Options
-docSpliceOptions = def
+options :: Splice.Options
+options = def
     { Splice.spliceImports = [qualifiedImport "Text.Lit.Internal"]
     , Splice.mainImports   = [qualifiedImport "Text.Lit.Report"]
     , Splice.mainRun       = sureParse "Text.Lit.Report.runReport"
