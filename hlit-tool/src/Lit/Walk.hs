@@ -13,6 +13,8 @@ import           Data.Traversable
 import           Data.Typeable       (cast, gcast)
 import           Text.Pandoc.Builder (Block (..), Inline (..), Pandoc (..))
 
+-- | A generic applicative transformation that maps over the immediate
+-- subterms
 gmapA
     :: (Applicative f, Data a)
     => (forall b. Data b => b -> f b)

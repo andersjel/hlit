@@ -1,5 +1,4 @@
 ~~~ {.haskell .hidden}
-module Example where
 import Text.Lit.RenderFloat
 import Text.Lit.Report
 import Text.Lit.Render
