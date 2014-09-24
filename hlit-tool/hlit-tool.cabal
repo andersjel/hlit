@@ -46,7 +46,7 @@ library
     Lit
     Lit.DocSplice
     Lit.Extract
-    Lit.Walk
+    Lit.Generic
     Lit.Splice
   hs-source-dirs:      src
   default-language:    Haskell2010

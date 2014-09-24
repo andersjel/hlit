@@ -1,10 +1,8 @@
 module Lit.Extract where
 
 import           Control.Applicative
-import qualified Data.Data             as Data
-import qualified Data.Typeable         as Typeable
 import qualified Language.Haskell.Exts as H
-import           Lit.Walk
+import           Lit.Generic
 import qualified Text.Pandoc.Builder   as P
 
 data Mode = Auto | Merge | Import | Explicit
@@ -26,28 +24,37 @@ extractBlocks selector = getConst . walk (const Nothing) f
           then Const $ str ++ "\n" else pure undefined
     f _ = Nothing
 
-getG :: (Data.Data a, Typeable.Typeable b) => a -> b
-getG a = r
-  where
-    Left r = Data.gmapM f a
-    f :: (Typeable.Typeable b, Data.Data d) => d -> Either b d
-    f x = maybe (Right x) Left $ Typeable.cast x
-
 fixLackingMain :: H.Module -> H.Module
 fixLackingMain m = let
     H.ModuleName name = getG m
-    isMain = name == "Main"
+    isMainModule = name == "Main"
     decls :: [H.Decl]
     decls = getG m
-    -- TODO: scan decls for a declaration of main. If it does not exist, strip
-    -- it from the exports.
+    exports :: Maybe [H.ExportSpec]
+    exports = getG m
+    exports' = removeMain <$> exports
+    removeMain :: [H.ExportSpec] -> [H.ExportSpec]
+    removeMain = filter (not . specIsMain)
+    m' = setG exports' m
+#if MIN_VERSION_haskell_src_exts(1,16,0)
+    specIsMain (H.EVar _ (H.UnQual (H.Ident "main"))) = True
+#else
+    specIsMain (H.EVar (H.UnQual (H.Ident "main"))) = True
+#endif
+    specIsMain _ = False
+    hasMain = any isMain decls
+    isMain :: H.Decl -> Bool
+#if MIN_VERSION_haskell_src_exts(1,16,0)
+    isMain (H.PatBind _ (H.PVar (H.Ident "main")) _ _ ) = True
+#else
+    isMain (H.PatBind _ (H.PVar (H.Ident "main")) _ _ _) = True
+#endif
+    isMain _ = False
   in
-    if not isMain then m else
-        undefined
+    if isMainModule && not hasMain then m' else m
 
--- TODO:
--- extract :: Mode -> P.Pandoc -> Either String H.Module
-
--- for now
-extract :: ([String] -> Bool) -> P.Pandoc -> String
-extract = extractBlocks
+extract :: Mode -> P.Pandoc -> Either String H.Module
+extract _ d
+    = case H.parseModule $ extractBlocks codeAndIncludes d of
+        H.ParseOk m -> Right $ fixLackingMain m
+        err -> Left $ show err

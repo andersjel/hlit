@@ -8,7 +8,7 @@ import           Data.Char                    (isSpace)
 import           Data.Default
 import qualified Language.Haskell.Exts        as H
 import           Language.Haskell.Exts.SrcLoc
-import           Lit.Walk
+import           Lit.Generic
 import           Lit.Splice                   (Splice, splice)
 import qualified Lit.Splice                   as Splice
 import qualified Text.Pandoc.Builder          as P

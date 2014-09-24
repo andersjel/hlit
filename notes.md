@@ -38,9 +38,6 @@ The default should be `hlit --mode=auto` which will select
 ## TODO list
 
 1. Split off Lit.Splice.
-1. haskell-src-exts adds main to the export list if a module does not have a
-   `module SomeName where` header. This causes problems if no such header is
-   given. This needs to be worked around.
 1. Configurable decimal point and thousand separator.
 1. Plot.ly integration.
 1. Friendlier error messages.
