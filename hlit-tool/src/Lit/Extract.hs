@@ -26,32 +26,38 @@ extractBlocks selector = getConst . walk (const Nothing) f
 
 fixLackingMain :: H.Module -> H.Module
 fixLackingMain m = let
-    H.ModuleName name = getG m
-    isMainModule = name == "Main"
+
+    H.ModuleName moduleName = getG m
+
     decls :: [H.Decl]
     decls = getG m
+
     exports :: Maybe [H.ExportSpec]
     exports = getG m
-    exports' = removeMain <$> exports
+
     removeMain :: [H.ExportSpec] -> [H.ExportSpec]
-    removeMain = filter (not . specIsMain)
-    m' = setG exports' m
+    removeMain = filter (not . exportIsMain)
+
+    exportIsMain :: H.ExportSpec -> Bool
 #if MIN_VERSION_haskell_src_exts(1,16,0)
-    specIsMain (H.EVar _ (H.UnQual (H.Ident "main"))) = True
+    exportIsMain (H.EVar _ (H.UnQual (H.Ident "main"))) = True
 #else
-    specIsMain (H.EVar (H.UnQual (H.Ident "main"))) = True
+    exportIsMain (H.EVar (H.UnQual (H.Ident "main"))) = True
 #endif
-    specIsMain _ = False
-    hasMain = any isMain decls
-    isMain :: H.Decl -> Bool
+    exportIsMain _ = False
+
+    declIsMain :: H.Decl -> Bool
 #if MIN_VERSION_haskell_src_exts(1,16,0)
-    isMain (H.PatBind _ (H.PVar (H.Ident "main")) _ _ ) = True
+    declIsMain (H.PatBind _ (H.PVar (H.Ident "main")) _ _ ) = True
 #else
-    isMain (H.PatBind _ (H.PVar (H.Ident "main")) _ _ _) = True
+    declIsMain (H.PatBind _ (H.PVar (H.Ident "main")) _ _ _) = True
 #endif
-    isMain _ = False
+    declIsMain _ = False
+
   in
-    if isMainModule && not hasMain then m' else m
+    if (moduleName == "main") && not (any declIsMain decls)
+        then setG (removeMain <$> exports) m
+        else m
 
 extract :: Mode -> P.Pandoc -> Either String H.Module
 extract _ d
