@@ -1,4 +1,4 @@
-module Text.Lit.DiagramsSVG (renderSvg) where
+module Text.Lit.DiagramsSVG (renderSvg, display) where
 
 import           Control.Applicative
 import           Data.Foldable                (toList)
@@ -9,6 +9,9 @@ import           Text.Lit.Render              (Render, render)
 import qualified Text.Lit.Report              as R
 import qualified Text.Pandoc.Builder          as P
 
+-- | This is the most general way to render a diagram with this module. Note,
+-- that this function can only be used in an inline context as images in
+-- pandoc are inline.
 renderSvg
     :: Render a
     => String                -- ^ title
@@ -21,3 +24,16 @@ renderSvg title alt size diagram = do
     url <- R.saveOutputFile "diagram" "svg" $ B.renderSvg im
     alt' <- toList <$> render alt
     return $ P.Image alt' (url, title)
+
+-- | Put a diagram in a paragraph by itself.
+--
+-- If the `implicit_figures` pandoc extension is in use, then the paragraph is
+-- rendered as a figure with the alt-text as the caption.
+display
+    :: Render a
+    => a                     -- ^ alt text
+    -> Double                -- ^ width (pixels)
+    -> D.Diagram S.SVG D.R2
+    -> R.Report P.Block      -- ^ a paragraph with the diagram in it
+display alt width diagram
+    = P.Para . (:[]) <$> renderSvg "" alt (D.Width width) diagram

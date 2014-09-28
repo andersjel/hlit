@@ -1,8 +1,19 @@
-Import the diagrams module and the rendering functions
+This document shows how to use *hlit-diagrams-svg* to render one of the
+examples from the [diagrams website](http://projects.haskell.org/diagrams/).
 
-> import Text.Lit.DiagramsSVG
+> {-# LANGUAGE NoMonomorphismRestriction #-}
 > import Diagrams.Prelude
+> import Text.Lit.DiagramsSVG (display)
 
-Here is a circle:
+We want to render a Hilbert curve defined by
 
-`@renderSvg "" "A circle" (Width 100) $ pad 1.1 $ circle 1`
+> hilbert = iterate expand mempty where
+>   expand t = alignBL $ hcat [u, hrule 1, reflectX u] where
+>              u = vcat [t, alignT $ vrule 1, rotateBy (3/4) t]
+
+Here is what it looks like:
+
+~~~splice
+display "A Hilbert curve" 300 $
+    pad 1.1 . centerXY $ hilbert!!5
+~~~
