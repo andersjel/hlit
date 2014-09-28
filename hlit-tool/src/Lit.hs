@@ -43,6 +43,7 @@ data Arguments = Arguments
     , ghcExe        :: FilePath
     , pandocOptions :: [String]
     , tmpFolder     :: Maybe FilePath
+    , mode          :: Extract.Mode
     }
 
 nameMakeLens ''Arguments $ \(c:cs) -> Just $ 'l' : toUpper c : cs
@@ -59,6 +60,7 @@ instance Default Arguments where
         , ghcExe = "ghc"
         , pandocOptions = def
         , tmpFolder = def
+        , mode = Extract.Auto
         }
 
 options :: [OptDescr (Arguments -> Arguments)]
@@ -87,10 +89,14 @@ options =
     , Option "t" ["to"]
         (ReqArg (setL lOutputFormat . Just) "FORMAT")
         "Output format (forwarded to pandoc)"
+    , Option "m" ["mode"]
+        (ReqArg (setL lMode . f) "MODE") $ unlines
+        [ "Mode of operation. Must be one of 'merge', 'import',"
+        , "'explicit', or 'auto'. The default is 'auto'."]
     , Option "o" ["output"]
         (ReqArg (setL lOutputFile . Just) "FILE")
         "Output file (omit for stdout)"
-    , Option "m" ["media"]
+    , Option "e" ["media"]
         (ReqArg (setL lMediaFolder . Just) "PATH")
         "Path to a folder to use for generated images and media"
     , Option "" ["tmp"]
@@ -99,6 +105,12 @@ options =
         , "executeables in this folder (and leave them"
         , "there after the program terminates)"]
     ]
+  where
+    f "auto"     = Extract.Auto
+    f "merge"    = Extract.Merge
+    f "explicit" = Extract.Explicit
+    f "import"   = Extract.Import
+    f x = error $ "No such mode '" ++ x ++ "'"
 
 getArguments :: IO Arguments
 getArguments = do
@@ -183,7 +195,7 @@ setupMediaFolder args tmp = do
 run :: Arguments -> IO ()
 run args = do
     doc <- readDoc args
-    inputModule <- case Extract.extract Extract.Auto doc of
+    inputModule <- case Extract.extract (mode args) doc of
         Right m -> return m
         Left err -> fail err
     withDir "hlit." (tmpFolder args) $ \tmp -> do

@@ -32,6 +32,10 @@ setG v = Data.gmapT f
   where
     f x = fromMaybe x $ cast v
 
+modG :: (Data.Data a, Typeable.Typeable b) => (b -> b) -> a -> a
+modG f a = setG (f b) a
+  where b = getG a
+
 concatTraverse :: Applicative f => (a -> f [b]) -> [a] -> f [b]
 concatTraverse h x = concat <$> traverse h x
 

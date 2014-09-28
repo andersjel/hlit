@@ -2,6 +2,7 @@ module Lit.Extract where
 
 import           Control.Applicative
 import qualified Language.Haskell.Exts as H
+import           Language.Haskell.Exts.SrcLoc (noLoc)
 import           Lit.Generic
 import qualified Text.Pandoc.Builder   as P
 
@@ -55,12 +56,50 @@ fixLackingMain m = let
     declIsMain _ = False
 
   in
-    if (moduleName == "main") && not (any declIsMain decls)
+    if (moduleName == "Main") && not (any declIsMain decls)
         then setG (removeMain <$> exports) m
         else m
 
+unqualImport :: H.ModuleName -> H.ImportDecl
+#if MIN_VERSION_haskell_src_exts(1,16,0)
+unqualImport x = H.ImportDecl noLoc
+    x
+    False   -- Qualified
+    False   -- With SOURCE pragma?
+    False   -- Safe import
+    Nothing -- Package name
+    Nothing -- As ...
+    Nothing -- Import specs
+#else
+unqualImport x = H.ImportDecl noLoc
+    x
+    False   -- Qualified
+    False   -- With SOURCE pragma?
+    Nothing -- Package name
+    Nothing -- As ...
+    Nothing -- Import specs
+#endif
+
 extract :: Mode -> P.Pandoc -> Either String H.Module
-extract _ d
-    = case H.parseModule $ extractBlocks codeAndIncludes d of
-        H.ParseOk m -> Right $ fixLackingMain m
+extract mode doc = let
+    ex s = case H.parseModule $ extractBlocks s doc of
+        H.ParseOk m -> Right m
         err -> Left $ show err
+    impM = case ex code of
+        Left err -> Left err
+        Right c ->
+            modG (unqualImport name:) . modG (++imports) . modG (++pragmas)
+                <$> ex includes
+          where
+            imports :: [H.ImportDecl]
+            imports = getG c
+            name :: H.ModuleName
+            name = getG c
+            pragmas :: [H.ModulePragma]
+            pragmas = getG c
+  in
+    case mode of
+        Merge    -> fixLackingMain <$> ex codeAndIncludes
+        Explicit -> ex includes
+        Import   -> fixLackingMain <$> impM
+        Auto     -> extract Merge doc
