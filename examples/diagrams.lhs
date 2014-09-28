@@ -1,6 +1,5 @@
 Import the diagrams module and the rendering functions
 
-> module Example where
 > import Text.Lit.DiagramsSVG
 > import Diagrams.Prelude
 
