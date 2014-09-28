@@ -60,7 +60,7 @@ instance Default Arguments where
         , ghcExe = "ghc"
         , pandocOptions = def
         , tmpFolder = def
-        , mode = Extract.Auto
+        , mode = Extract.Merge
         }
 
 options :: [OptDescr (Arguments -> Arguments)]
@@ -92,7 +92,7 @@ options =
     , Option "m" ["mode"]
         (ReqArg (setL lMode . f) "MODE") $ unlines
         [ "Mode of operation. Must be one of 'merge', 'import',"
-        , "'explicit', or 'auto'. The default is 'auto'."]
+        , "or 'explicit'. The default is 'merge'."]
     , Option "o" ["output"]
         (ReqArg (setL lOutputFile . Just) "FILE")
         "Output file (omit for stdout)"
@@ -106,7 +106,6 @@ options =
         , "there after the program terminates)"]
     ]
   where
-    f "auto"     = Extract.Auto
     f "merge"    = Extract.Merge
     f "explicit" = Extract.Explicit
     f "import"   = Extract.Import

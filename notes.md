@@ -1,7 +1,5 @@
 ## Code handling
 
-Here are the modes we want to support
-
 `hlit --mode=merge`
 
 * **splice or do** — Transformed into a splice
@@ -29,11 +27,6 @@ document itself should be added to splice module. Lastlty we want a mode
 * **splice or do** — Transformed into a splice
 * **include** — Copied to splice module
 * **not hidden** — Printed in output
-
-The default should be `hlit --mode=auto` which will select
-
-* `import` — if the document is a literate haskell file.
-* `merge` — otherwise.
 
 ## TODO list
 

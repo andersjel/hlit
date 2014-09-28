@@ -6,7 +6,7 @@ import           Language.Haskell.Exts.SrcLoc (noLoc)
 import           Lit.Generic
 import qualified Text.Pandoc.Builder   as P
 
-data Mode = Auto | Merge | Import | Explicit
+data Mode = Merge | Import | Explicit
 
 code :: [String] -> Bool
 code cs = "haskell" `elem` cs && "ignore" `notElem` cs
@@ -102,4 +102,3 @@ extract mode doc = let
         Merge    -> fixLackingMain <$> ex codeAndIncludes
         Explicit -> ex includes
         Import   -> fixLackingMain <$> impM
-        Auto     -> extract Merge doc -- TODO, do not pick Merge every time.
