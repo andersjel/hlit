@@ -102,4 +102,4 @@ extract mode doc = let
         Merge    -> fixLackingMain <$> ex codeAndIncludes
         Explicit -> ex includes
         Import   -> fixLackingMain <$> impM
-        Auto     -> extract Merge doc
+        Auto     -> extract Merge doc -- TODO, do not pick Merge every time.
