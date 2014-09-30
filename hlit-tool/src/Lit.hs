@@ -11,8 +11,8 @@ import qualified Data.ByteString.Lazy           as BL
 import           Data.Char                      (toUpper)
 import           Data.Default
 import           Data.Foldable                  (for_)
-import           Data.Lens.Common
-import           Data.Lens.Template
+import           Data.Label                     (set, modify)
+import           Data.Label.Derive              (mkLabelsNamed)
 import           Data.List                      (intercalate)
 import           Data.Maybe                     (fromMaybe)
 import qualified Lit.DocSplice                  as DocSplice
@@ -46,7 +46,7 @@ data Arguments = Arguments
     , mode          :: Extract.Mode
     }
 
-nameMakeLens ''Arguments $ \(c:cs) -> Just $ 'l' : toUpper c : cs
+mkLabelsNamed (\(c:cs) -> 'l' : toUpper c : cs) [''Arguments]
 
 instance Default Arguments where
     def = Arguments
@@ -66,41 +66,41 @@ instance Default Arguments where
 options :: [OptDescr (Arguments -> Arguments)]
 options =
     [ Option "g" ["ghc-option"]
-        (ReqArg (\x -> modL lGhcOptions (++[x])) "OPTION")
+        (ReqArg (\x -> modify lGhcOptions (++[x])) "OPTION")
         "An option for GHC"
     , Option "G" ["ghc-options"]
-        (ReqArg (\x -> modL lGhcOptions (++words x)) "OPTIONs")
+        (ReqArg (\x -> modify lGhcOptions (++words x)) "OPTIONs")
         "Several options for GHC (split on spaces)"
     , Option "" ["ghc-path"]
-        (ReqArg (setL lGhcExe) "EXEC")
+        (ReqArg (set lGhcExe) "EXEC")
         "Where to find the ghc executeable"
     , Option "p" ["pandoc-option"]
-        (ReqArg (\x -> modL lPandocOptions (++[x])) "OPTION")
+        (ReqArg (\x -> modify lPandocOptions (++[x])) "OPTION")
         "An option for pandoc"
     , Option "P" ["pandoc-options"]
-        (ReqArg (\x -> modL lPandocOptions (++words x)) "OPTIONs")
+        (ReqArg (\x -> modify lPandocOptions (++words x)) "OPTIONs")
         "Several options for pandoc (split on spaces)"
     , Option "" ["pandoc-path"]
-        (ReqArg (setL lPandocExe) "EXEC")
+        (ReqArg (set lPandocExe) "EXEC")
         "Where to find the pandoc executeable"
     , Option "f" ["from"]
-        (ReqArg (setL lInputFormat . Just) "FORMAT")
+        (ReqArg (set lInputFormat . Just) "FORMAT")
         "Input format (forwarded to pandoc)"
     , Option "t" ["to"]
-        (ReqArg (setL lOutputFormat . Just) "FORMAT")
+        (ReqArg (set lOutputFormat . Just) "FORMAT")
         "Output format (forwarded to pandoc)"
     , Option "m" ["mode"]
-        (ReqArg (setL lMode . f) "MODE") $ unlines
+        (ReqArg (set lMode . f) "MODE") $ unlines
         [ "Mode of operation. Must be one of 'merge', 'import',"
         , "or 'explicit'. The default is 'merge'."]
     , Option "o" ["output"]
-        (ReqArg (setL lOutputFile . Just) "FILE")
+        (ReqArg (set lOutputFile . Just) "FILE")
         "Output file (omit for stdout)"
     , Option "e" ["media"]
-        (ReqArg (setL lMediaFolder . Just) "PATH")
+        (ReqArg (set lMediaFolder . Just) "PATH")
         "Path to a folder to use for generated images and media"
     , Option "" ["tmp"]
-        (ReqArg (setL lTmpFolder . Just) "PATH") $ unlines
+        (ReqArg (set lTmpFolder . Just) "PATH") $ unlines
         [ "Store temporary generated Haskell code and"
         , "executeables in this folder (and leave them"
         , "there after the program terminates)"]
