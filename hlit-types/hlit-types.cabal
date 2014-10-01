@@ -44,6 +44,7 @@ library
     Text.Lit.Report
     Text.Lit.RenderFloat
     Text.Lit.Internal
+    Text.Lit.Table
   ghc-options:         -Wall -fno-warn-unused-do-bind
   hs-source-dirs:      src
   default-language:    Haskell2010
