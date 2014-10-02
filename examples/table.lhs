@@ -13,8 +13,9 @@ This is a very basic way to factor an integer
 Let us try it out
 
 ```splice
-table [1..10::Int] ()
-    .// col "Number" id # align AlignRight
-    .// col "Factors" factors
-    .// col "Count"  (length . factors)
+table "Prime factors of some integers"
+    [ col "Number" id # alignRight
+    , col "Factors" factors
+    , col "Count" $ length . factors
+    ] [1..10::Int]
 ```
