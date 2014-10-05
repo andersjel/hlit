@@ -1,4 +1,4 @@
-module Text.Lit.DiagramsSVG (renderSvg, display) where
+module Text.Lit.DiagramsSVG (diagram, display) where
 
 import           Control.Applicative
 import           Data.Foldable                (toList)
@@ -10,17 +10,16 @@ import qualified Text.Lit.Report              as R
 import qualified Text.Pandoc.Builder          as P
 
 -- | This is the most general way to render a diagram with this module. Note,
--- that this function can only be used in an inline context as images in
--- pandoc are inline.
-renderSvg
+-- that this function returns an inline.
+diagram
     :: Render a
     => String                -- ^ title
     -> a                     -- ^ alt text
     -> D.SizeSpec2D
     -> D.Diagram S.SVG D.R2
     -> R.Report P.Inline     -- ^ inline image
-renderSvg title alt size diagram = do
-    let im = D.renderDia S.SVG (S.SVGOptions size Nothing) diagram
+diagram title alt size dia = do
+    let im = D.renderDia S.SVG (S.SVGOptions size Nothing) dia
     url <- R.saveOutputFile "diagram" "svg" $ B.renderSvg im
     alt' <- toList <$> render alt
     return $ P.Image alt' (url, title)
@@ -35,5 +34,5 @@ display
     -> Double                -- ^ width (pixels)
     -> D.Diagram S.SVG D.R2
     -> R.Report P.Block      -- ^ a paragraph with the diagram in it
-display alt width diagram
-    = P.Para . (:[]) <$> renderSvg "" alt (D.Width width) diagram
+display alt width dia
+    = P.Para . (:[]) <$> diagram "" alt (D.Width width) dia
