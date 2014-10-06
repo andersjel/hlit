@@ -1,10 +1,10 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 
 module Text.Lit.ChartDiagrams
-    ( inlinePlot
-    , plot
-    , ecInlinePlot
-    , ecPlot
+    ( inlineChart
+    , chart
+    , ecInlineChart
+    , ecChart
     , options
     , size
     , format
@@ -47,13 +47,13 @@ customFonts = R.refine options C._fo_customFonts $ \x y -> y{C._fo_customFonts=x
 
 -- | This is the most general way to render a plot with this module. Note,
 -- that this function returns an inline.
-inlinePlot
+inlineChart
     :: Render a
     => String             -- ^ title
     -> a                  -- ^ alt text
     -> (C.Renderable r)   -- ^ plot to render
     -> R.Report P.Inline  -- ^ inline image
-inlinePlot title alt p = do
+inlineChart title alt p = do
     op <- R.get options
     let ex = case C._fo_format op of
             C.EPS -> "eps"
@@ -68,25 +68,25 @@ inlinePlot title alt p = do
 --
 -- If the `implicit_figures` pandoc extension is in use, then the paragraph is
 -- rendered as a figure with the alt-text as the caption.
-plot
+chart
     :: Render a
     => a                 -- ^ alt text
     -> C.Renderable r    -- ^ plot to render
     -> R.Report P.Block  -- ^ a paragraph with the diagram in it
-plot alt p
-    = P.Para . (:[]) <$> inlinePlot "" alt p
+chart alt p
+    = P.Para . (:[]) <$> inlineChart "" alt p
 
-ecInlinePlot
+ecInlineChart
     :: (Render a, C.ToRenderable r, Default r)
     => String             -- ^ title
     -> a                  -- ^ alt text
     -> C.EC r ()          -- ^ plot to render
     -> R.Report P.Inline  -- ^ inline image
-ecInlinePlot title alt = inlinePlot title alt . C.toRenderable . C.execEC
+ecInlineChart title alt = inlineChart title alt . C.toRenderable . C.execEC
 
-ecPlot
+ecChart
     :: (Render a, C.ToRenderable r, Default r)
     => a                 -- ^ alt text
     -> C.EC r ()         -- ^ plot to render
     -> R.Report P.Block  -- ^ a paragraph with the diagram in it
-ecPlot alt = plot alt . C.toRenderable . C.execEC
+ecChart alt = chart alt . C.toRenderable . C.execEC
