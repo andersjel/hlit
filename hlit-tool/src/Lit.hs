@@ -11,11 +11,12 @@ import qualified Data.ByteString.Lazy           as BL
 import           Data.Char                      (toUpper)
 import           Data.Default
 import           Data.Foldable                  (for_)
-import           Data.Label                     (set, modify)
+import           Data.Label                     (modify, set)
 import           Data.Label.Derive              (mkLabelsNamed)
 import           Data.List                      (intercalate)
 import           Data.Maybe                     (fromMaybe)
 import qualified Lit.DocSplice                  as DocSplice
+import qualified Lit.ErrorHandling
 import qualified Lit.Extract                    as Extract
 import qualified Lit.Splice                     as Splice
 import qualified Network.URI                    as URI
@@ -115,11 +116,11 @@ getArguments :: IO Arguments
 getArguments = do
     let header = "usage: hlit [OPTIONS] [INPUT-FILE]"
         info = GetOpt.usageInfo header options
-        bail = putStrLn info >> exitFailure
+        bail = IO.hPutStrLn IO.stderr info >> exitFailure
     args <- parseArguments <$> getArgs
     case args of
         Right x -> return x
-        Left errors -> for_ errors putStrLn >> bail
+        Left errors -> for_ errors (IO.hPutStrLn IO.stderr) >> bail
 
 parseArguments :: [String] -> Either [String] Arguments
 parseArguments args = do
@@ -192,7 +193,7 @@ setupMediaFolder args tmp = do
     return (path, url)
 
 run :: Arguments -> IO ()
-run args = do
+run args = Lit.ErrorHandling.funnel $ do
     doc <- readDoc args
     inputModule <- case Extract.extract (mode args) doc of
         Right m -> return m
