@@ -15,7 +15,10 @@ import           Data.Label                     (modify, set)
 import           Data.Label.Derive              (mkLabelsNamed)
 import           Data.List                      (intercalate)
 import           Data.Maybe                     (fromMaybe)
+import qualified Data.Text.Lazy                 as TL
+import           Data.Text.Lazy.Encoding        (decodeUtf8)
 import qualified Lit.DocSplice                  as DocSplice
+import           Lit.ErrorHandling              (context, litThrowIO')
 import qualified Lit.ErrorHandling
 import qualified Lit.Extract                    as Extract
 import qualified Lit.Splice                     as Splice
@@ -141,7 +144,7 @@ callProcess exe args stdin = do
         _ -> fail "Process exited with a failure."
 
 readDoc :: Arguments -> IO Pandoc
-readDoc args = do
+readDoc args = context "parsing input" $ do
     let args' =
             pandocOptions args
             ++ maybe [] (\x -> ["-f", x]) (inputFormat args)
@@ -155,9 +158,8 @@ readDoc args = do
     output <- callProcess (pandocExe args) args' stdin
     case Aeson.decode' output of
         Nothing -> do
-            putStrLn "Unexpected output from pandoc:"
-            hPut IO.stderr output
-            exitFailure
+            litThrowIO' "Unexpected output from pandoc." $
+                TL.unpack $ decodeUtf8 output
         Just p -> return p
 
 writeDoc :: Arguments -> Pandoc -> IO ()

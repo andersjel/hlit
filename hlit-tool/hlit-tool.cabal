@@ -24,22 +24,23 @@ cabal-version:       >=1.10
 
 library
   build-depends:
-    hlit-types,
-    base >=4.6,
     aeson,
+    base >=4.6,
     bytestring,
     containers,
     data-default,
-    fclabels,
     directory,
+    fclabels,
     filepath,
     haskell-src-exts,
+    hlit-types,
     mtl,
     network-uri,
     pandoc-types,
     process,
     process-extras,
     temporary,
+    text,
     transformers
   exposed-modules:
     Lit
