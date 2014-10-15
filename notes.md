@@ -34,5 +34,7 @@ document itself should be added to splice module. Lastlty we want a mode
 1. Configurable decimal point and thousand separator.
 1. Plot.ly integration.
 1. Friendlier error messages.
+1. Fix all warnings when running hlit with -g -Wall.
+1. Give splices access to the code of the splice somehow.
 1. Add `--allow-io` option.
 1. Safe haskell import of splice module.

@@ -141,6 +141,7 @@ mkMainMod opts (Splice exprs _) = mainMod
         , "import qualified Data.Aeson           as A"
         , "import           Data.Aeson           (toJSON)"
         , "import qualified Data.ByteString.Lazy as B"
+        , "main :: IO ()"
         , "main = do"
         , "    Just input <- A.decode `fmap` B.getContents"
         , "    output <- mainRun input $ sequence splices"
