@@ -4,6 +4,7 @@ module Lit.ErrorHandling
     ( context
     , Context
     , Details
+    , Coloring(..)
     , litThrow
     , litThrowIO
     , litThrow'
@@ -15,6 +16,7 @@ import           Control.Exception   (Exception, Handler (..), SomeException,
                                       catch, catches, fromException, throw)
 import qualified Control.Exception   as E
 import           Control.Monad       (void)
+import           Data.Default
 import           Data.Foldable       (for_)
 import           Data.Typeable       (Typeable)
 import qualified System.Console.ANSI as A
@@ -24,6 +26,11 @@ import qualified System.IO.Error     as IO.Error
 
 type Context = String
 type Details = String
+
+data Coloring = Plain | Colorful
+
+instance Default Coloring where
+    def = Colorful
 
 data LitError = LitError Details String | LitErrorWrap E.SomeException
 data LitExcp = LitExcp
@@ -56,27 +63,33 @@ context c a = catches a
     , Handler $ throw . LitExcp [c] . LitErrorWrap
     ]
 
-printException :: SomeException -> IO ()
-printException e = do
-    A.hSetSGR stderr [A.SetColor A.Foreground A.Vivid A.Red]
+printException :: Coloring -> SomeException -> IO ()
+printException coloring e = do
+    color A.Vivid A.Red
     hPutStr stderr "hlit: "
-    A.hSetSGR stderr [A.SetColor A.Foreground A.Vivid A.Yellow]
+    color A.Vivid A.Yellow
     hPutStrLn stderr $ errStr e
-    A.hSetSGR stderr [A.SetColor A.Foreground A.Vivid A.Blue]
+    color A.Vivid A.Blue
     for_ (errContext e) $ \c ->
         hPutStrLn stderr $ "  * while " ++ c ++ "."
-    A.hSetSGR stderr []
+    reset
     for_ (errDetails e) $ \details -> do
         hPutStrLn stderr "details:"
-        A.hSetSGR stderr [A.SetColor A.Foreground A.Vivid A.Blue]
+        color A.Vivid A.Blue
         for_ (lines details) $ hPutStrLn stderr . ("  " ++)
-        A.hSetSGR stderr []
+        reset
+  where
+    reset = whenColor $ A.hSetSGR stderr []
+    color i c = whenColor $ A.hSetSGR stderr [A.SetColor A.Foreground i c]
+    whenColor x = case coloring of
+        Plain    -> return ()
+        Colorful -> x
 
-handler :: SomeException -> IO ()
-handler e = printException e >> exitFailure
+handler :: Coloring -> SomeException -> IO ()
+handler c e = printException c e >> exitFailure
 
-funnel :: IO a -> IO ()
-funnel a = void a `catch` handler
+funnel :: Coloring -> IO a -> IO ()
+funnel c a = void a `catch` handler c
 
 litThrow :: String -> a
 litThrow = E.throw . LitExcp [] . LitError ""

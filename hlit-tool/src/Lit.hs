@@ -48,6 +48,7 @@ data Arguments = Arguments
     , pandocOptions :: [String]
     , tmpFolder     :: Maybe FilePath
     , mode          :: Extract.Mode
+    , coloring      :: Lit.ErrorHandling.Coloring
     }
 
 mkLabelsNamed (\(c:cs) -> 'l' : toUpper c : cs) [''Arguments]
@@ -65,49 +66,53 @@ instance Default Arguments where
         , pandocOptions = def
         , tmpFolder = def
         , mode = Extract.Merge
+        , coloring = def
         }
 
 options :: [OptDescr (Arguments -> Arguments)]
 options =
     [ Option "g" ["ghc-option"]
         (ReqArg (\x -> modify lGhcOptions (++[x])) "OPTION")
-        "An option for GHC"
+        "An option for GHC."
     , Option "G" ["ghc-options"]
         (ReqArg (\x -> modify lGhcOptions (++words x)) "OPTIONs")
-        "Several options for GHC (split on spaces)"
+        "Several options for GHC (split on spaces)."
     , Option "" ["ghc-path"]
         (ReqArg (set lGhcExe) "EXEC")
-        "Where to find the ghc executeable"
+        "Where to find the ghc executeable."
     , Option "p" ["pandoc-option"]
         (ReqArg (\x -> modify lPandocOptions (++[x])) "OPTION")
-        "An option for pandoc"
+        "An option for pandoc."
     , Option "P" ["pandoc-options"]
         (ReqArg (\x -> modify lPandocOptions (++words x)) "OPTIONs")
-        "Several options for pandoc (split on spaces)"
+        "Several options for pandoc (split on spaces)."
     , Option "" ["pandoc-path"]
         (ReqArg (set lPandocExe) "EXEC")
-        "Where to find the pandoc executeable"
+        "Where to find the pandoc executeable."
     , Option "f" ["from"]
         (ReqArg (set lInputFormat . Just) "FORMAT")
-        "Input format (forwarded to pandoc)"
+        "Input format (forwarded to pandoc)."
     , Option "t" ["to"]
         (ReqArg (set lOutputFormat . Just) "FORMAT")
-        "Output format (forwarded to pandoc)"
+        "Output format (forwarded to pandoc)."
     , Option "m" ["mode"]
         (ReqArg (set lMode . f) "MODE") $ unlines
         [ "Mode of operation. Must be one of 'merge', 'import',"
         , "or 'explicit'. The default is 'merge'."]
     , Option "o" ["output"]
         (ReqArg (set lOutputFile . Just) "FILE")
-        "Output file (omit for stdout)"
+        "Output file (omit for stdout)."
     , Option "e" ["media"]
         (ReqArg (set lMediaFolder . Just) "PATH")
-        "Path to a folder to use for generated images and media"
+        "Path to a folder to use for generated images and media."
     , Option "" ["tmp"]
         (ReqArg (set lTmpFolder . Just) "PATH") $ unlines
         [ "Store temporary generated Haskell code and"
         , "executeables in this folder (and leave them"
-        , "there after the program terminates)"]
+        , "there after the program terminates)."]
+    , Option "" ["no-color"]
+        (NoArg (set lColoring Lit.ErrorHandling.Plain))
+        "Do not color stderr."
     ]
   where
     f "merge"    = Extract.Merge
@@ -133,7 +138,7 @@ parseArguments args = do
     case args' of
         [inputFile'] -> Right arguments{inputFile=Just inputFile'}
         [] -> Right arguments
-        _ -> Left ["Too many positional arguments"]
+        _ -> Left ["Too many positional arguments\n"]
 
 callProcess :: FilePath -> [String] -> ByteString -> IO ByteString
 callProcess exe args stdin =
@@ -196,7 +201,7 @@ setupMediaFolder args tmp = do
     return (path, url)
 
 run :: Arguments -> IO ()
-run args = Lit.ErrorHandling.funnel $ do
+run args = Lit.ErrorHandling.funnel (coloring args) $ do
     doc <- readDoc args
     inputModule <- case Extract.extract (mode args) doc of
         Right m -> return m
