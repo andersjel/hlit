@@ -9,14 +9,15 @@ module Lit.ErrorHandling
     , litThrowIO'
     ) where
 
-import           Control.Exception (Exception, catch, throw, Handler(..), catches)
+import           Control.Exception (Exception, SomeException, catch, throw,
+                                    Handler(..), catches, fromException)
 import qualified Control.Exception as E
 import           Control.Monad     (void)
-import           Data.Typeable     (Typeable, cast)
+import           Data.Typeable     (Typeable)
 import           System.Exit       (exitFailure)
 import           System.IO         (hPutStr, hPutStrLn, stderr)
 import qualified System.IO.Error   as IO.Error
-import           Data.Foldable     (traverse_, for_)
+import           Data.Foldable     (for_)
 
 type Context = String
 type Details = String
@@ -33,16 +34,16 @@ instance Show LitExcp where
 
 instance Exception LitExcp
 
-errStr :: (Typeable e, Show e) => e -> String
-errStr e = case cast e of
+errStr :: SomeException -> String
+errStr e = case fromException e of
     Just ioe | IO.Error.isUserError ioe -> IO.Error.ioeGetErrorString ioe
     _ -> show e
 
-errContext :: Typeable e => e -> [Context]
-errContext = maybe [] getContext . cast
+errContext :: SomeException -> [Context]
+errContext = maybe [] getContext . fromException
 
-errDetails :: Typeable e => e -> Maybe String
-errDetails e = case cast e of
+errDetails :: SomeException -> Maybe String
+errDetails e = case fromException e of
     Just (LitExcp _ (LitError d _)) -> Just d
     _ -> Nothing
 
@@ -52,19 +53,21 @@ context c a = catches a
     , Handler $ throw . LitExcp [c] . LitErrorWrap
     ]
 
-printException :: Exception e => e -> IO ()
+printException :: SomeException -> IO ()
 printException e = do
     hPutStr stderr "hlit: "
     hPutStrLn stderr $ errStr e
-    for_ (errContext e) $ \c ->
-        hPutStrLn stderr $ "  while " ++ c
-    traverse_ (hPutStrLn stderr) $ errDetails e
+    for_ (reverse $ errContext e) $ \c ->
+        hPutStrLn stderr $ "  * while " ++ c ++ "."
+    for_ (errDetails e) $ \details -> do
+        hPutStrLn stderr "details:"
+        for_ (lines details) $ hPutStrLn stderr . ("> " ++)
 
-handler :: Exception e => e -> IO ()
+handler :: SomeException -> IO ()
 handler e = printException e >> exitFailure
 
 funnel :: IO a -> IO ()
-funnel a = void a `catch` (handler :: E.SomeException -> IO ())
+funnel a = void a `catch` handler
 
 litThrow :: String -> a
 litThrow = E.throw . LitExcp [] . LitError ""

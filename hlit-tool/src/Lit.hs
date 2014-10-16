@@ -159,7 +159,7 @@ readDoc args = context "parsing input" $ do
     case Aeson.decode' output of
         Nothing -> do
             litThrowIO' "Unexpected output from pandoc." $
-                TL.unpack $ decodeUtf8 output
+                ("output was:\n" ++) . TL.unpack $ decodeUtf8 output
         Just p -> return p
 
 writeDoc :: Arguments -> Pandoc -> IO ()
