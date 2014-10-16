@@ -11,15 +11,16 @@ module Lit.ErrorHandling
     , funnel
     ) where
 
-import           Control.Exception (Exception, SomeException, catch, throw,
-                                    Handler(..), catches, fromException)
-import qualified Control.Exception as E
-import           Control.Monad     (void)
-import           Data.Typeable     (Typeable)
-import           System.Exit       (exitFailure)
-import           System.IO         (hPutStr, hPutStrLn, stderr)
-import qualified System.IO.Error   as IO.Error
-import           Data.Foldable     (for_)
+import           Control.Exception   (Exception, Handler (..), SomeException,
+                                      catch, catches, fromException, throw)
+import qualified Control.Exception   as E
+import           Control.Monad       (void)
+import           Data.Foldable       (for_)
+import           Data.Typeable       (Typeable)
+import qualified System.Console.ANSI as A
+import           System.Exit         (exitFailure)
+import           System.IO           (hPutStr, hPutStrLn, stderr)
+import qualified System.IO.Error     as IO.Error
 
 type Context = String
 type Details = String
@@ -27,7 +28,7 @@ type Details = String
 data LitError = LitError Details String | LitErrorWrap E.SomeException
 data LitExcp = LitExcp
     { getContext :: [Context]
-    , getError :: LitError
+    , getError   :: LitError
     } deriving Typeable
 
 instance Show LitExcp where
@@ -57,13 +58,19 @@ context c a = catches a
 
 printException :: SomeException -> IO ()
 printException e = do
+    A.hSetSGR stderr [A.SetColor A.Foreground A.Vivid A.Red]
     hPutStr stderr "hlit: "
+    A.hSetSGR stderr [A.SetColor A.Foreground A.Vivid A.Yellow]
     hPutStrLn stderr $ errStr e
+    A.hSetSGR stderr [A.SetColor A.Foreground A.Vivid A.Blue]
     for_ (errContext e) $ \c ->
         hPutStrLn stderr $ "  * while " ++ c ++ "."
+    A.hSetSGR stderr []
     for_ (errDetails e) $ \details -> do
         hPutStrLn stderr "details:"
-        for_ (lines details) $ hPutStrLn stderr . ("> " ++)
+        A.hSetSGR stderr [A.SetColor A.Foreground A.Vivid A.Blue]
+        for_ (lines details) $ hPutStrLn stderr . ("  " ++)
+        A.hSetSGR stderr []
 
 handler :: SomeException -> IO ()
 handler e = printException e >> exitFailure
