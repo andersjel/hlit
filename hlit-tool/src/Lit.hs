@@ -169,7 +169,7 @@ readDoc args = context "parsing input" $ do
         Just p -> return p
 
 writeDoc :: Arguments -> Pandoc -> IO ()
-writeDoc args doc = do
+writeDoc args doc = context "writing output" $ do
     let args' =
             pandocOptions args
             ++ maybe [] (\x -> ["-t", x]) (outputFormat args)
