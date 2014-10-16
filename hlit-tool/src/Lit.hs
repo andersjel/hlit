@@ -136,12 +136,13 @@ parseArguments args = do
         _ -> Left ["Too many positional arguments"]
 
 callProcess :: FilePath -> [String] -> ByteString -> IO ByteString
-callProcess exe args stdin = do
-    (exitCode, stdout, stderr) <- readProcessWithExitCode exe args stdin
-    hPut IO.stderr stderr
-    case exitCode of
-        ExitSuccess -> return stdout
-        _ -> fail "Process exited with a failure."
+callProcess exe args stdin =
+    context ("running: '" ++ intercalate " " (exe:args) ++ "'") $ do
+        (exitCode, stdout, stderr) <- readProcessWithExitCode exe args stdin
+        hPut IO.stderr stderr
+        case exitCode of
+            ExitSuccess -> return stdout
+            _ -> fail $ "'" ++ exe ++ "' exited with a failure."
 
 readDoc :: Arguments -> IO Pandoc
 readDoc args = context "parsing input" $ do

@@ -2,11 +2,13 @@
 
 module Lit.ErrorHandling
     ( context
-    , funnel
+    , Context
+    , Details
     , litThrow
     , litThrowIO
     , litThrow'
     , litThrowIO'
+    , funnel
     ) where
 
 import           Control.Exception (Exception, SomeException, catch, throw,
@@ -57,7 +59,7 @@ printException :: SomeException -> IO ()
 printException e = do
     hPutStr stderr "hlit: "
     hPutStrLn stderr $ errStr e
-    for_ (reverse $ errContext e) $ \c ->
+    for_ (errContext e) $ \c ->
         hPutStrLn stderr $ "  * while " ++ c ++ "."
     for_ (errDetails e) $ \details -> do
         hPutStrLn stderr "details:"
