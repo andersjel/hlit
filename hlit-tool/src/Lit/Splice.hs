@@ -24,7 +24,6 @@ import           Data.Maybe
 import           Data.Monoid
 import           Data.Sequence                  (Seq)
 import qualified Data.Sequence                  as Seq
-import           Lit.ErrorHandling              (context, litThrowIO')
 import qualified Language.Haskell.Exts          as H
 import           Language.Haskell.Exts.SrcLoc   (noLoc)
 import           System.Exit                    (ExitCode (..))
@@ -208,9 +207,8 @@ runSplice opts arg spl@(Splice _ loader)
             spliceModPath = combine outDir "HLitSpliceMod.hs"
             mainModPath = combine outDir "HLitSpliceMain.hs"
             mainPath = combine outDir "HLitSpliceMain"
-        context "writing out generated modules" $ do
-            storeMod spliceModPath spliceMod
-            storeMod mainModPath mainMod
+        storeMod spliceModPath spliceMod
+        storeMod mainModPath mainMod
         checkCallSilent (ghcExe opts) $
             ghcOptions opts ++
             ["-outputdir", outDir, "-i" ++ outDir, spliceModPath]
