@@ -31,7 +31,6 @@ document itself should be added to splice module. Lastlty we want a mode
 ## TODO list
 
 1. Friendlier error messages.
-1. Fix all warnings when running hlit with `-g -Wall`.
 1. Write readme.
 1. First release.
 1. Man page.

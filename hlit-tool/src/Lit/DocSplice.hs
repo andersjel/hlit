@@ -76,5 +76,7 @@ options = def
     { Splice.spliceImports = [qualifiedImport "Text.Lit.Internal"]
     , Splice.mainImports   = [qualifiedImport "Text.Lit.Report"]
     , Splice.mainRun       = sureParse "Text.Lit.Report.runReport"
+    , Splice.monadType     = sureParse "Text.Lit.Report.Report"
     , Splice.outputDir     = Nothing
+    , Splice.mainOptType   = sureParse "Text.Lit.Report.Options"
     }

@@ -57,6 +57,8 @@ data Options = Options
     , inputContent  :: H.Module
     , spliceImports :: [H.ImportDecl]
     , mainImports   :: [H.ImportDecl]
+    , monadType     :: H.Type
+    , mainOptType   :: H.Type
     , mainRun       :: H.Exp
     , outputDir     :: Maybe FilePath
     , ghcOptions    :: [String]
@@ -69,10 +71,12 @@ instance Default Options where
         , inputContent  = base
         , spliceImports = []
         , mainImports   = []
-        , mainRun       = H.lamE noLoc [H.pTuple []] (H.function "id")
+        , mainRun       = let H.ParseOk x = H.parse "\\() -> id" in x
         , outputDir     = def
         , ghcOptions    = def
         , ghcExe        = "ghc"
+        , monadType     = let H.ParseOk x = H.parse "IO" in x
+        , mainOptType   = let H.ParseOk x = H.parse "()" in x
         }
       where
         H.ParseOk base = H.parse "module SpliceBase where\n"
@@ -147,6 +151,14 @@ mkMainMod opts (Splice exprs _) = mainMod
         , "    output <- mainRun input $ sequence splices"
         , "    B.putStr $ A.encode output"
         , ""]
+    splicesType    = H.TyList $ H.TyApp (monadType opts) x
+      where
+        H.ParseOk x = H.parse "A.Value"
+    mainRunType    = H.TyFun (mainOptType opts) (H.TyFun (H.TyApp m a) y)
+      where
+        m = monadType opts
+        H.ParseOk a = H.parse "a"
+        H.ParseOk y = H.parse "IO a"
     names          = mkSpliceNames $ Seq.length exprs
     mainMod        = addMainExpr . addMainImports $ mainModBase
     addMainExpr    = tmap (++ mainModDecls)
@@ -156,6 +168,8 @@ mkMainMod opts (Splice exprs _) = mainMod
         , H.nameBind noLoc (H.name "splices") $ H.listE $
             map (H.app (H.app (H.function "fmap") (H.function "toJSON"))
                 . H.qvar spliceModName) names
+        , H.TypeSig noLoc [H.Ident "splices"] splicesType
+        , H.TypeSig noLoc [H.Ident "mainRun"] mainRunType
         ]
 
 withOutputDir :: Options -> (FilePath -> IO a) -> IO a
