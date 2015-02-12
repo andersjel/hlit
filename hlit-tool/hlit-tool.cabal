@@ -1,7 +1,4 @@
 name:                hlit-tool
--- PVP summary:      +-+------- breaking API changes
---                   | | +----- non-breaking API additions
---                   | | | +--- code changes with no API change
 version:             0.1.0.0
 synopsis:            Tool used to run hlit documents
 
@@ -15,11 +12,7 @@ maintainer:          anders.jel@gmail.com
 copyright:           Copyright (c) 2014 Anders Jellinggaard
 category:            Text
 build-type:          Simple
-
--- Extra files to be distributed with the package, such as examples or a
--- README.
 -- extra-source-files:
-
 cabal-version:       >=1.10
 
 library

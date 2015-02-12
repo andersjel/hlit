@@ -5,7 +5,7 @@ cd "$( dirname "${BASH_SOURCE[0]}" )"
 cabal sandbox init
 cd hlit-types
 cabal sandbox init --sandbox "../.cabal-sandbox"
-for sub in hlit-tool hlit-diagrams-svg hlit-chart-diagrams; do
+for sub in hlit-tool hlit-diagrams-svg hlit-chart-diagrams hlit-c3js; do
     cd "../$sub"
     cabal sandbox init --sandbox "../.cabal-sandbox"
     cabal sandbox add-source ../hlit-types

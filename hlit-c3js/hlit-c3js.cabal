@@ -1,7 +1,6 @@
-name:                hlit-diagrams-svg
+name:                hlit-c3js
 version:             0.1.0.0
-
-synopsis:            Include diagrams in hlit documents using diagrams-svg.
+synopsis:            Make plots in hlit using the C3.js plotting library.
 -- description:
 license:             GPL-3
 license-file:        ../LICENSE
@@ -12,16 +11,17 @@ category:            Text
 build-type:          Simple
 -- extra-source-files:
 cabal-version:       >=1.10
+
 library
   exposed-modules:
-    Text.Lit.DiagramsSVG
+    Text.Lit.C3js
   build-depends:
     base >=4.6,
-    blaze-svg,
-    diagrams-lib,
-    diagrams-svg,
     hlit-types,
-    pandoc-types
-  ghc-options:         -Wall -fno-warn-unused-do-bind
+    pandoc-types,
+    aeson,
+    bytestring,
+    unordered-containers
   hs-source-dirs:      src
   default-language:    Haskell2010
+  ghc-options:         -Wall
